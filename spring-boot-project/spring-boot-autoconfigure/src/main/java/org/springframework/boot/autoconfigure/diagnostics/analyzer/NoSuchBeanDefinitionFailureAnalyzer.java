@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,7 +65,8 @@ class NoSuchBeanDefinitionFailureAnalyzer extends AbstractInjectionFailureAnalyz
 	private final ConditionEvaluationReport report;
 
 	NoSuchBeanDefinitionFailureAnalyzer(BeanFactory beanFactory) {
-		Assert.isInstanceOf(ConfigurableListableBeanFactory.class, beanFactory);
+		Assert.isTrue(beanFactory instanceof ConfigurableListableBeanFactory,
+				"'beanFactory' must be a ConfigurableListableBeanFactory");
 		this.beanFactory = (ConfigurableListableBeanFactory) beanFactory;
 		this.metadataReaderFactory = new CachingMetadataReaderFactory(this.beanFactory.getBeanClassLoader());
 		// Get early as won't be accessible once context has failed to start
@@ -134,9 +135,9 @@ class NoSuchBeanDefinitionFailureAnalyzer extends AbstractInjectionFailureAnalyz
 		}
 		String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(this.beanFactory, type);
 		return Arrays.stream(beanNames)
-				.map((beanName) -> new UserConfigurationResult(getFactoryMethodMetadata(beanName),
-						this.beanFactory.getBean(beanName).equals(null)))
-				.toList();
+			.map((beanName) -> new UserConfigurationResult(getFactoryMethodMetadata(beanName),
+					this.beanFactory.getBean(beanName).equals(null)))
+			.toList();
 	}
 
 	private MethodMetadata getFactoryMethodMetadata(String beanName) {
@@ -150,8 +151,8 @@ class NoSuchBeanDefinitionFailureAnalyzer extends AbstractInjectionFailureAnalyz
 	private void collectReportedConditionOutcomes(NoSuchBeanDefinitionException cause,
 			List<AutoConfigurationResult> results) {
 		this.report.getConditionAndOutcomesBySource()
-				.forEach((source, sourceOutcomes) -> collectReportedConditionOutcomes(cause, new Source(source),
-						sourceOutcomes, results));
+			.forEach((source, sourceOutcomes) -> collectReportedConditionOutcomes(cause, new Source(source),
+					sourceOutcomes, results));
 	}
 
 	private void collectReportedConditionOutcomes(NoSuchBeanDefinitionException cause, Source source,
@@ -224,9 +225,9 @@ class NoSuchBeanDefinitionFailureAnalyzer extends AbstractInjectionFailureAnalyz
 		private List<MethodMetadata> findBeanMethods(Source source, NoSuchBeanDefinitionException cause) {
 			try {
 				MetadataReader classMetadata = NoSuchBeanDefinitionFailureAnalyzer.this.metadataReaderFactory
-						.getMetadataReader(source.getClassName());
+					.getMetadataReader(source.getClassName());
 				Set<MethodMetadata> candidates = classMetadata.getAnnotationMetadata()
-						.getAnnotatedMethods(Bean.class.getName());
+					.getAnnotatedMethods(Bean.class.getName());
 				List<MethodMetadata> result = new ArrayList<>();
 				for (MethodMetadata candidate : candidates) {
 					if (isMatch(candidate, source, cause)) {

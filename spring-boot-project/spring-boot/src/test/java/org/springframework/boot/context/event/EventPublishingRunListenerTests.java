@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,7 +76,7 @@ class EventPublishingRunListenerTests {
 		ConfigurableEnvironment environment = new StandardEnvironment();
 		TestApplicationListener lateAddedApplicationListener = new TestApplicationListener();
 		ApplicationListener<ApplicationStartingEvent> listener = (event) -> event.getSpringApplication()
-				.addListeners(lateAddedApplicationListener);
+			.addListeners(lateAddedApplicationListener);
 		application.addListeners(listener);
 		EventPublishingRunListener runListener = new EventPublishingRunListener(application, null);
 		runListener.starting(bootstrapContext);
@@ -86,7 +86,7 @@ class EventPublishingRunListenerTests {
 
 	static class TestApplicationListener implements ApplicationListener<ApplicationEvent> {
 
-		private Deque<ApplicationEvent> events = new ArrayDeque<>();
+		private final Deque<ApplicationEvent> events = new ArrayDeque<>();
 
 		@Override
 		public void onApplicationEvent(ApplicationEvent event) {

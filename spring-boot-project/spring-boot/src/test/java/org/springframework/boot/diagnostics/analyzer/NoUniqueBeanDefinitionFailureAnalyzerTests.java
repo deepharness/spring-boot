@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package org.springframework.boot.diagnostics.analyzer;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.BeanCreationException;
+import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.diagnostics.FailureAnalysis;
@@ -93,7 +94,31 @@ class NoUniqueBeanDefinitionFailureAnalyzerTests {
 		assertFoundBeans(failureAnalysis);
 	}
 
+	@Test
+	void failureAnalysisIncludesPossiblyMissingParameterNames() {
+		FailureAnalysis failureAnalysis = analyzeFailure(createFailure(MethodConsumer.class));
+		assertThat(failureAnalysis.getDescription()).contains(MissingParameterNamesFailureAnalyzer.POSSIBILITY);
+		assertThat(failureAnalysis.getAction()).contains(MissingParameterNamesFailureAnalyzer.ACTION);
+		assertFoundBeans(failureAnalysis);
+	}
+
+	@Test
+	void failureAnalysisWithoutInjectionPoints() {
+		this.context.registerBean("beanOne", TestBean.class);
+		this.context.register(DuplicateBeansProducer.class);
+		this.context.refresh();
+		FailureAnalysis failureAnalysis = analyzeFailure(new NoUniqueBeanDefinitionException(TestBean.class, 3,
+				"no TestBeanProvider specified and expected single matching TestBean but found 3: beanOne,beanTwo,xmlBean"));
+		assertThat(failureAnalysis.getDescription())
+			.startsWith("A component required a single bean, but 3 were found:");
+		assertThat(failureAnalysis.getDescription()).contains("beanOne: defined in unknown location");
+		assertThat(failureAnalysis.getDescription())
+			.contains("beanTwo: defined by method 'beanTwo' in " + DuplicateBeansProducer.class.getName());
+		assertThat(failureAnalysis.getDescription()).contains("xmlBean: a programmatically registered singleton");
+	}
+
 	private BeanCreationException createFailure(Class<?> consumer) {
+		this.context.registerBean("beanOne", TestBean.class);
 		this.context.register(DuplicateBeansProducer.class, consumer);
 		this.context.setParent(new AnnotationConfigApplicationContext(ParentProducer.class));
 		try {
@@ -105,17 +130,16 @@ class NoUniqueBeanDefinitionFailureAnalyzerTests {
 		return null;
 	}
 
-	private FailureAnalysis analyzeFailure(BeanCreationException failure) {
+	private FailureAnalysis analyzeFailure(Exception failure) {
 		return this.analyzer.analyze(failure);
 	}
 
 	private void assertFoundBeans(FailureAnalysis analysis) {
+		assertThat(analysis.getDescription()).contains("beanOne: defined in unknown location");
 		assertThat(analysis.getDescription())
-				.contains("beanOne: defined by method 'beanOne' in " + DuplicateBeansProducer.class.getName());
+			.contains("beanTwo: defined by method 'beanTwo' in " + DuplicateBeansProducer.class.getName());
 		assertThat(analysis.getDescription())
-				.contains("beanTwo: defined by method 'beanTwo' in " + DuplicateBeansProducer.class.getName());
-		assertThat(analysis.getDescription())
-				.contains("beanThree: defined by method 'beanThree' in " + ParentProducer.class.getName());
+			.contains("beanThree: defined by method 'beanThree' in " + ParentProducer.class.getName());
 		assertThat(analysis.getDescription()).contains("barTestBean");
 		assertThat(analysis.getDescription()).contains("fooTestBean");
 		assertThat(analysis.getDescription()).contains("xmlTestBean");
@@ -125,11 +149,6 @@ class NoUniqueBeanDefinitionFailureAnalyzerTests {
 	@ComponentScan(basePackageClasses = TestBean.class)
 	@ImportResource("/org/springframework/boot/diagnostics/analyzer/nounique/producer.xml")
 	static class DuplicateBeansProducer {
-
-		@Bean
-		TestBean beanOne() {
-			return new TestBean();
-		}
 
 		@Bean
 		TestBean beanTwo() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ import org.springframework.boot.actuate.autoconfigure.endpoint.web.WebEndpointPr
 import org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration;
 import org.springframework.boot.actuate.autoconfigure.web.server.ConditionalOnManagementPort;
 import org.springframework.boot.actuate.autoconfigure.web.server.ManagementPortType;
+import org.springframework.boot.actuate.endpoint.EndpointAccessResolver;
 import org.springframework.boot.actuate.endpoint.ExposableEndpoint;
 import org.springframework.boot.actuate.endpoint.OperationResponseBody;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
@@ -46,9 +47,7 @@ import org.springframework.boot.actuate.endpoint.web.EndpointMediaTypes;
 import org.springframework.boot.actuate.endpoint.web.ExposableWebEndpoint;
 import org.springframework.boot.actuate.endpoint.web.WebEndpointsSupplier;
 import org.springframework.boot.actuate.endpoint.web.WebServerNamespace;
-import org.springframework.boot.actuate.endpoint.web.annotation.ControllerEndpointsSupplier;
 import org.springframework.boot.actuate.endpoint.web.reactive.AdditionalHealthEndpointPathsWebFluxHandlerMapping;
-import org.springframework.boot.actuate.endpoint.web.reactive.ControllerEndpointHandlerMapping;
 import org.springframework.boot.actuate.endpoint.web.reactive.WebFluxEndpointHandlerMapping;
 import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.actuate.health.HealthEndpointGroups;
@@ -89,10 +88,11 @@ public class WebFluxEndpointManagementContextConfiguration {
 
 	@Bean
 	@ConditionalOnMissingBean
+	@SuppressWarnings("removal")
 	public WebFluxEndpointHandlerMapping webEndpointReactiveHandlerMapping(WebEndpointsSupplier webEndpointsSupplier,
-			ControllerEndpointsSupplier controllerEndpointsSupplier, EndpointMediaTypes endpointMediaTypes,
-			CorsEndpointProperties corsProperties, WebEndpointProperties webEndpointProperties,
-			Environment environment) {
+			org.springframework.boot.actuate.endpoint.web.annotation.ControllerEndpointsSupplier controllerEndpointsSupplier,
+			EndpointMediaTypes endpointMediaTypes, CorsEndpointProperties corsProperties,
+			WebEndpointProperties webEndpointProperties, Environment environment) {
 		String basePath = webEndpointProperties.getBasePath();
 		EndpointMapping endpointMapping = new EndpointMapping(basePath);
 		Collection<ExposableWebEndpoint> endpoints = webEndpointsSupplier.getEndpoints();
@@ -107,7 +107,7 @@ public class WebFluxEndpointManagementContextConfiguration {
 	private boolean shouldRegisterLinksMapping(WebEndpointProperties properties, Environment environment,
 			String basePath) {
 		return properties.getDiscovery().isEnabled() && (StringUtils.hasText(basePath)
-				|| ManagementPortType.get(environment).equals(ManagementPortType.DIFFERENT));
+				|| ManagementPortType.get(environment) == ManagementPortType.DIFFERENT);
 	}
 
 	@Bean
@@ -117,20 +117,26 @@ public class WebFluxEndpointManagementContextConfiguration {
 	public AdditionalHealthEndpointPathsWebFluxHandlerMapping managementHealthEndpointWebFluxHandlerMapping(
 			WebEndpointsSupplier webEndpointsSupplier, HealthEndpointGroups groups) {
 		Collection<ExposableWebEndpoint> webEndpoints = webEndpointsSupplier.getEndpoints();
-		ExposableWebEndpoint health = webEndpoints.stream()
-				.filter((endpoint) -> endpoint.getEndpointId().equals(HealthEndpoint.ID)).findFirst().get();
-		return new AdditionalHealthEndpointPathsWebFluxHandlerMapping(new EndpointMapping(""), health,
+		ExposableWebEndpoint healthEndpoint = webEndpoints.stream()
+			.filter((endpoint) -> endpoint.getEndpointId().equals(HealthEndpoint.ID))
+			.findFirst()
+			.orElse(null);
+		return new AdditionalHealthEndpointPathsWebFluxHandlerMapping(new EndpointMapping(""), healthEndpoint,
 				groups.getAllWithAdditionalPath(WebServerNamespace.MANAGEMENT));
 	}
 
 	@Bean
 	@ConditionalOnMissingBean
-	public ControllerEndpointHandlerMapping controllerEndpointHandlerMapping(
-			ControllerEndpointsSupplier controllerEndpointsSupplier, CorsEndpointProperties corsProperties,
-			WebEndpointProperties webEndpointProperties) {
+	@SuppressWarnings("removal")
+	@Deprecated(since = "3.3.5", forRemoval = true)
+	public org.springframework.boot.actuate.endpoint.web.reactive.ControllerEndpointHandlerMapping controllerEndpointHandlerMapping(
+			org.springframework.boot.actuate.endpoint.web.annotation.ControllerEndpointsSupplier controllerEndpointsSupplier,
+			CorsEndpointProperties corsProperties, WebEndpointProperties webEndpointProperties,
+			EndpointAccessResolver endpointAccessResolver) {
 		EndpointMapping endpointMapping = new EndpointMapping(webEndpointProperties.getBasePath());
-		return new ControllerEndpointHandlerMapping(endpointMapping, controllerEndpointsSupplier.getEndpoints(),
-				corsProperties.toCorsConfiguration());
+		return new org.springframework.boot.actuate.endpoint.web.reactive.ControllerEndpointHandlerMapping(
+				endpointMapping, controllerEndpointsSupplier.getEndpoints(), corsProperties.toCorsConfiguration(),
+				endpointAccessResolver);
 	}
 
 	@Bean
@@ -149,7 +155,7 @@ public class WebFluxEndpointManagementContextConfiguration {
 	static class ServerCodecConfigurerEndpointObjectMapperBeanPostProcessor implements BeanPostProcessor {
 
 		private static final List<MediaType> MEDIA_TYPES = Collections
-				.unmodifiableList(Arrays.asList(MediaType.APPLICATION_JSON, new MediaType("application", "*+json")));
+			.unmodifiableList(Arrays.asList(MediaType.APPLICATION_JSON, new MediaType("application", "*+json")));
 
 		private final Supplier<EndpointObjectMapper> endpointObjectMapper;
 
@@ -160,23 +166,22 @@ public class WebFluxEndpointManagementContextConfiguration {
 
 		@Override
 		public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-			if (bean instanceof ServerCodecConfigurer) {
-				process((ServerCodecConfigurer) bean);
+			if (bean instanceof ServerCodecConfigurer serverCodecConfigurer) {
+				process(serverCodecConfigurer);
 			}
 			return bean;
 		}
 
 		private void process(ServerCodecConfigurer configurer) {
 			for (HttpMessageWriter<?> writer : configurer.getWriters()) {
-				if (writer instanceof EncoderHttpMessageWriter) {
-					process(((EncoderHttpMessageWriter<?>) writer).getEncoder());
+				if (writer instanceof EncoderHttpMessageWriter<?> encoderHttpMessageWriter) {
+					process((encoderHttpMessageWriter).getEncoder());
 				}
 			}
 		}
 
 		private void process(Encoder<?> encoder) {
-			if (encoder instanceof Jackson2JsonEncoder) {
-				Jackson2JsonEncoder jackson2JsonEncoder = (Jackson2JsonEncoder) encoder;
+			if (encoder instanceof Jackson2JsonEncoder jackson2JsonEncoder) {
 				jackson2JsonEncoder.registerObjectMappersForType(OperationResponseBody.class, (associations) -> {
 					ObjectMapper objectMapper = this.endpointObjectMapper.get().get();
 					MEDIA_TYPES.forEach((mimeType) -> associations.put(mimeType, objectMapper));

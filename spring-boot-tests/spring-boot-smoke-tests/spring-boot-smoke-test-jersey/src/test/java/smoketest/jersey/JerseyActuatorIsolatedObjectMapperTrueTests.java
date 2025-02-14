@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT,
 		properties = "management.endpoints.jackson.isolated-object-mapper=true")
 @ContextConfiguration(loader = ApplicationStartupSpringBootContextLoader.class)
-public class JerseyActuatorIsolatedObjectMapperTrueTests {
+class JerseyActuatorIsolatedObjectMapperTrueTests {
 
 	@LocalServerPort
 	private int port;
@@ -53,7 +53,7 @@ public class JerseyActuatorIsolatedObjectMapperTrueTests {
 	@Test
 	void resourceShouldBeAvailableOnMainPort() {
 		ResponseEntity<String> entity = this.testRestTemplate
-				.getForEntity("http://localhost:" + this.port + "/actuator/startup", String.class);
+			.getForEntity("http://localhost:" + this.port + "/actuator/startup", String.class);
 		assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
 		assertThat(entity.getBody()).contains("\"timeline\":");
 	}

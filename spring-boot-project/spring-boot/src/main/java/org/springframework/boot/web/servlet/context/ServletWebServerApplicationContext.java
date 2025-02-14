@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -149,6 +149,7 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 			WebServer webServer = this.webServer;
 			if (webServer != null) {
 				webServer.stop();
+				webServer.destroy();
 			}
 			throw ex;
 		}
@@ -171,6 +172,10 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 			AvailabilityChangeEvent.publish(this, ReadinessState.REFUSING_TRAFFIC);
 		}
 		super.doClose();
+		WebServer webServer = this.webServer;
+		if (webServer != null) {
+			webServer.destroy();
+		}
 	}
 
 	private void createWebServer() {
@@ -232,8 +237,8 @@ public class ServletWebServerApplicationContext extends GenericWebApplicationCon
 		prepareWebApplicationContext(servletContext);
 		registerApplicationScope(servletContext);
 		WebApplicationContextUtils.registerEnvironmentBeans(getBeanFactory(), servletContext);
-		for (ServletContextInitializer beans : getServletContextInitializerBeans()) {
-			beans.onStartup(servletContext);
+		for (ServletContextInitializer initializerBean : getServletContextInitializerBeans()) {
+			initializerBean.onStartup(servletContext);
 		}
 	}
 

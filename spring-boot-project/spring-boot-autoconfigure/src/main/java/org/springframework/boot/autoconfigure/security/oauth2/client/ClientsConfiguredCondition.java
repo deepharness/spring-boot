@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,26 +36,28 @@ import org.springframework.core.type.AnnotatedTypeMetadata;
  * @author Madhura Bhave
  * @since 2.1.0
  */
-
 public class ClientsConfiguredCondition extends SpringBootCondition {
 
 	private static final Bindable<Map<String, OAuth2ClientProperties.Registration>> STRING_REGISTRATION_MAP = Bindable
-			.mapOf(String.class, OAuth2ClientProperties.Registration.class);
+		.mapOf(String.class, OAuth2ClientProperties.Registration.class);
 
 	@Override
 	public ConditionOutcome getMatchOutcome(ConditionContext context, AnnotatedTypeMetadata metadata) {
 		ConditionMessage.Builder message = ConditionMessage.forCondition("OAuth2 Clients Configured Condition");
 		Map<String, OAuth2ClientProperties.Registration> registrations = getRegistrations(context.getEnvironment());
 		if (!registrations.isEmpty()) {
-			return ConditionOutcome.match(message.foundExactly("registered clients " + registrations.values().stream()
-					.map(OAuth2ClientProperties.Registration::getClientId).collect(Collectors.joining(", "))));
+			return ConditionOutcome.match(message.foundExactly("registered clients " + registrations.values()
+				.stream()
+				.map(OAuth2ClientProperties.Registration::getClientId)
+				.collect(Collectors.joining(", "))));
 		}
 		return ConditionOutcome.noMatch(message.notAvailable("registered clients"));
 	}
 
 	private Map<String, OAuth2ClientProperties.Registration> getRegistrations(Environment environment) {
-		return Binder.get(environment).bind("spring.security.oauth2.client.registration", STRING_REGISTRATION_MAP)
-				.orElse(Collections.emptyMap());
+		return Binder.get(environment)
+			.bind("spring.security.oauth2.client.registration", STRING_REGISTRATION_MAP)
+			.orElse(Collections.emptyMap());
 	}
 
 }

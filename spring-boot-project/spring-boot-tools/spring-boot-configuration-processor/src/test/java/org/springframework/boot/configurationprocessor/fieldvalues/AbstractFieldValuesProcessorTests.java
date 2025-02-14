@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,14 +48,14 @@ public abstract class AbstractFieldValuesProcessorTests {
 	protected abstract FieldValuesParser createProcessor(ProcessingEnvironment env);
 
 	@Test
-	void getFieldValues() throws Exception {
+	void getFieldValues() {
 		TestProcessor processor = new TestProcessor();
-		TestCompiler compiler = TestCompiler.forSystem().withProcessors(processor)
-				.withSources(SourceFile.forTestClass(FieldValues.class));
+		TestCompiler compiler = TestCompiler.forSystem()
+			.withProcessors(processor)
+			.withSources(SourceFile.forTestClass(FieldValues.class));
 		compiler.compile((compiled) -> {
 		});
 		Map<String, Object> values = processor.getValues();
-		assertThat(values.get("string")).isEqualTo("1");
 		assertThat(values.get("stringNone")).isNull();
 		assertThat(values.get("stringConst")).isEqualTo("c");
 		assertThat(values.get("bool")).isEqualTo(true);
@@ -105,15 +105,20 @@ public abstract class AbstractFieldValuesProcessorTests {
 		assertThat(values.get("periodMonths")).isEqualTo("10m");
 		assertThat(values.get("periodYears")).isEqualTo("15y");
 		assertThat(values.get("periodZero")).isEqualTo(0);
+		assertThat(values.get("enumNone")).isNull();
+		assertThat(values.get("enumSimple")).isEqualTo("seconds");
+		assertThat(values.get("enumQualified")).isEqualTo("hour-of-day");
+		assertThat(values.get("enumWithIndirection")).isNull();
+		assertThat(values.get("memberSelectInt")).isNull();
 	}
 
 	@SupportedAnnotationTypes({ "org.springframework.boot.configurationsample.ConfigurationProperties" })
 	@SupportedSourceVersion(SourceVersion.RELEASE_6)
-	private class TestProcessor extends AbstractProcessor {
+	private final class TestProcessor extends AbstractProcessor {
 
 		private FieldValuesParser processor;
 
-		private Map<String, Object> values = new HashMap<>();
+		private final Map<String, Object> values = new HashMap<>();
 
 		@Override
 		public synchronized void init(ProcessingEnvironment env) {

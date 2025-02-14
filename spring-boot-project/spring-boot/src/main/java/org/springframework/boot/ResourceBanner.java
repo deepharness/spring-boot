@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import org.springframework.boot.ansi.AnsiPropertySource;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.MutablePropertySources;
@@ -45,17 +46,19 @@ import org.springframework.util.StreamUtils;
  * @author Phillip Webb
  * @author Vedran Pavic
  * @author Toshiaki Maki
+ * @author Krzysztof Krason
+ * @author Moritz Halbritter
  * @since 1.2.0
  */
 public class ResourceBanner implements Banner {
 
 	private static final Log logger = LogFactory.getLog(ResourceBanner.class);
 
-	private Resource resource;
+	private final Resource resource;
 
 	public ResourceBanner(Resource resource) {
-		Assert.notNull(resource, "Resource must not be null");
-		Assert.isTrue(resource.exists(), "Resource must exist");
+		Assert.notNull(resource, "'resource' must not be null");
+		Assert.isTrue(resource.exists(), "'resource' must exist");
 		this.resource = resource;
 	}
 
@@ -64,7 +67,6 @@ public class ResourceBanner implements Banner {
 		try {
 			String banner = StreamUtils.copyToString(this.resource.getInputStream(),
 					environment.getProperty("spring.banner.charset", Charset.class, StandardCharsets.UTF_8));
-
 			for (PropertyResolver resolver : getPropertyResolvers(environment, sourceClass)) {
 				banner = resolver.resolvePlaceholders(banner);
 			}
@@ -76,66 +78,102 @@ public class ResourceBanner implements Banner {
 		}
 	}
 
+	/**
+	 * Return a mutable list of the {@link PropertyResolver} instances that will be used
+	 * to resolve placeholders.
+	 * @param environment the environment
+	 * @param sourceClass the source class
+	 * @return a mutable list of property resolvers
+	 */
 	protected List<PropertyResolver> getPropertyResolvers(Environment environment, Class<?> sourceClass) {
 		List<PropertyResolver> resolvers = new ArrayList<>();
-		resolvers.add(environment);
-		resolvers.add(getVersionResolver(sourceClass));
-		resolvers.add(getAnsiResolver());
-		resolvers.add(getTitleResolver(sourceClass));
+		resolvers.add(new PropertySourcesPropertyResolver(createNullDefaultSources(environment, sourceClass)));
+		resolvers.add(new PropertySourcesPropertyResolver(createEmptyDefaultSources(environment, sourceClass)));
 		return resolvers;
 	}
 
-	private PropertyResolver getVersionResolver(Class<?> sourceClass) {
-		MutablePropertySources propertySources = new MutablePropertySources();
-		propertySources.addLast(new MapPropertySource("version", getVersionsMap(sourceClass)));
-		return new PropertySourcesPropertyResolver(propertySources);
+	private MutablePropertySources createNullDefaultSources(Environment environment, Class<?> sourceClass) {
+		MutablePropertySources nullDefaultSources = new MutablePropertySources();
+		if (environment instanceof ConfigurableEnvironment configurableEnvironment) {
+			configurableEnvironment.getPropertySources().forEach(nullDefaultSources::addLast);
+		}
+		nullDefaultSources.addLast(getTitleSource(sourceClass, null));
+		nullDefaultSources.addLast(getAnsiSource());
+		nullDefaultSources.addLast(getVersionSource(sourceClass, environment, null));
+		return nullDefaultSources;
 	}
 
-	private Map<String, Object> getVersionsMap(Class<?> sourceClass) {
+	private MutablePropertySources createEmptyDefaultSources(Environment environment, Class<?> sourceClass) {
+		MutablePropertySources emptyDefaultSources = new MutablePropertySources();
+		emptyDefaultSources.addLast(getTitleSource(sourceClass, ""));
+		emptyDefaultSources.addLast(getVersionSource(sourceClass, environment, ""));
+		return emptyDefaultSources;
+	}
+
+	private MapPropertySource getTitleSource(Class<?> sourceClass, String defaultValue) {
+		String applicationTitle = getApplicationTitle(sourceClass);
+		Map<String, Object> titleMap = Collections.singletonMap("application.title",
+				(applicationTitle != null) ? applicationTitle : defaultValue);
+		return new MapPropertySource("title", titleMap);
+	}
+
+	/**
+	 * Return the application title that should be used for the source class. By default
+	 * will use {@link Package#getImplementationTitle()}.
+	 * @param sourceClass the source class
+	 * @return the application title
+	 */
+	protected String getApplicationTitle(Class<?> sourceClass) {
+		Package sourcePackage = (sourceClass != null) ? sourceClass.getPackage() : null;
+		return (sourcePackage != null) ? sourcePackage.getImplementationTitle() : null;
+	}
+
+	private AnsiPropertySource getAnsiSource() {
+		return new AnsiPropertySource("ansi", true);
+	}
+
+	private MapPropertySource getVersionSource(Class<?> sourceClass, Environment environment, String defaultValue) {
+		return new MapPropertySource("version", getVersionsMap(sourceClass, environment, defaultValue));
+	}
+
+	private Map<String, Object> getVersionsMap(Class<?> sourceClass, Environment environment, String defaultValue) {
 		String appVersion = getApplicationVersion(sourceClass);
+		if (appVersion == null) {
+			appVersion = getApplicationVersion(environment);
+		}
 		String bootVersion = getBootVersion();
 		Map<String, Object> versions = new HashMap<>();
-		versions.put("application.version", getVersionString(appVersion, false));
-		versions.put("spring-boot.version", getVersionString(bootVersion, false));
-		versions.put("application.formatted-version", getVersionString(appVersion, true));
-		versions.put("spring-boot.formatted-version", getVersionString(bootVersion, true));
+		versions.put("application.version", getVersionString(appVersion, false, defaultValue));
+		versions.put("spring-boot.version", getVersionString(bootVersion, false, defaultValue));
+		versions.put("application.formatted-version", getVersionString(appVersion, true, defaultValue));
+		versions.put("spring-boot.formatted-version", getVersionString(bootVersion, true, defaultValue));
 		return versions;
 	}
 
+	/**
+	 * Returns the application version.
+	 * @param sourceClass the source class
+	 * @return the application version or {@code null} if unknown
+	 * @deprecated since 3.4.0 for removal in 3.6.0
+	 */
+	@Deprecated(since = "3.4.0", forRemoval = true)
 	protected String getApplicationVersion(Class<?> sourceClass) {
-		Package sourcePackage = (sourceClass != null) ? sourceClass.getPackage() : null;
-		return (sourcePackage != null) ? sourcePackage.getImplementationVersion() : null;
+		return null;
+	}
+
+	private String getApplicationVersion(Environment environment) {
+		return environment.getProperty("spring.application.version");
 	}
 
 	protected String getBootVersion() {
 		return SpringBootVersion.getVersion();
 	}
 
-	private String getVersionString(String version, boolean format) {
+	private String getVersionString(String version, boolean format, String fallback) {
 		if (version == null) {
-			return "";
+			return fallback;
 		}
 		return format ? " (v" + version + ")" : version;
-	}
-
-	private PropertyResolver getAnsiResolver() {
-		MutablePropertySources sources = new MutablePropertySources();
-		sources.addFirst(new AnsiPropertySource("ansi", true));
-		return new PropertySourcesPropertyResolver(sources);
-	}
-
-	private PropertyResolver getTitleResolver(Class<?> sourceClass) {
-		MutablePropertySources sources = new MutablePropertySources();
-		String applicationTitle = getApplicationTitle(sourceClass);
-		Map<String, Object> titleMap = Collections.singletonMap("application.title",
-				(applicationTitle != null) ? applicationTitle : "");
-		sources.addFirst(new MapPropertySource("title", titleMap));
-		return new PropertySourcesPropertyResolver(sources);
-	}
-
-	protected String getApplicationTitle(Class<?> sourceClass) {
-		Package sourcePackage = (sourceClass != null) ? sourceClass.getPackage() : null;
-		return (sourcePackage != null) ? sourcePackage.getImplementationTitle() : null;
 	}
 
 }

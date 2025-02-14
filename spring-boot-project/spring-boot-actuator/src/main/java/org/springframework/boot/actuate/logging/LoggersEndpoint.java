@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,6 +34,8 @@ import org.springframework.boot.actuate.logging.LoggersEndpoint.GroupLoggerLevel
 import org.springframework.boot.actuate.logging.LoggersEndpoint.SingleLoggerLevelsDescriptor;
 import org.springframework.boot.logging.LogLevel;
 import org.springframework.boot.logging.LoggerConfiguration;
+import org.springframework.boot.logging.LoggerConfiguration.ConfigurationScope;
+import org.springframework.boot.logging.LoggerConfiguration.LevelConfiguration;
 import org.springframework.boot.logging.LoggerGroup;
 import org.springframework.boot.logging.LoggerGroups;
 import org.springframework.boot.logging.LoggingSystem;
@@ -62,8 +64,8 @@ public class LoggersEndpoint {
 	 * @param loggerGroups the logger group to expose
 	 */
 	public LoggersEndpoint(LoggingSystem loggingSystem, LoggerGroups loggerGroups) {
-		Assert.notNull(loggingSystem, "LoggingSystem must not be null");
-		Assert.notNull(loggerGroups, "LoggerGroups must not be null");
+		Assert.notNull(loggingSystem, "'loggingSystem' must not be null");
+		Assert.notNull(loggerGroups, "'loggerGroups' must not be null");
 		this.loggingSystem = loggingSystem;
 		this.loggerGroups = loggerGroups;
 	}
@@ -86,7 +88,7 @@ public class LoggersEndpoint {
 
 	@ReadOperation
 	public LoggerLevelsDescriptor loggerLevels(@Selector String name) {
-		Assert.notNull(name, "Name must not be null");
+		Assert.notNull(name, "'name' must not be null");
 		LoggerGroup group = this.loggerGroups.get(name);
 		if (group != null) {
 			return new GroupLoggerLevelsDescriptor(group.getConfiguredLevel(), group.getMembers());
@@ -97,7 +99,7 @@ public class LoggersEndpoint {
 
 	@WriteOperation
 	public void configureLogLevel(@Selector String name, @Nullable LogLevel configuredLevel) {
-		Assert.notNull(name, "Name must not be empty");
+		Assert.notNull(name, "'name' must not be empty");
 		LoggerGroup group = this.loggerGroups.get(name);
 		if (group != null && group.hasMembers()) {
 			group.configureLogLevel(configuredLevel, this.loggingSystem::setLogLevel);
@@ -161,10 +163,14 @@ public class LoggersEndpoint {
 	 */
 	public static class LoggerLevelsDescriptor implements OperationResponseBody {
 
-		private String configuredLevel;
+		private final String configuredLevel;
 
 		public LoggerLevelsDescriptor(LogLevel configuredLevel) {
-			this.configuredLevel = getName(configuredLevel);
+			this.configuredLevel = (configuredLevel != null) ? configuredLevel.name() : null;
+		}
+
+		LoggerLevelsDescriptor(LevelConfiguration directConfiguration) {
+			this.configuredLevel = (directConfiguration != null) ? directConfiguration.getName() : null;
 		}
 
 		protected final String getName(LogLevel level) {
@@ -182,7 +188,7 @@ public class LoggersEndpoint {
 	 */
 	public static class GroupLoggerLevelsDescriptor extends LoggerLevelsDescriptor {
 
-		private List<String> members;
+		private final List<String> members;
 
 		public GroupLoggerLevelsDescriptor(LogLevel configuredLevel, List<String> members) {
 			super(configuredLevel);
@@ -200,11 +206,11 @@ public class LoggersEndpoint {
 	 */
 	public static class SingleLoggerLevelsDescriptor extends LoggerLevelsDescriptor {
 
-		private String effectiveLevel;
+		private final String effectiveLevel;
 
 		public SingleLoggerLevelsDescriptor(LoggerConfiguration configuration) {
-			super(configuration.getConfiguredLevel());
-			this.effectiveLevel = getName(configuration.getEffectiveLevel());
+			super(configuration.getLevelConfiguration(ConfigurationScope.DIRECT));
+			this.effectiveLevel = configuration.getLevelConfiguration().getName();
 		}
 
 		public String getEffectiveLevel() {

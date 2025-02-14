@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,10 +33,11 @@ import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
  *
  * @author Phillip Webb
  * @author Madhura Bhave
+ * @author Yanming Zhou
  */
 class DefaultBindConstructorProviderTests {
 
-	private DefaultBindConstructorProvider provider = new DefaultBindConstructorProvider();
+	private final DefaultBindConstructorProvider provider = new DefaultBindConstructorProvider();
 
 	@Test
 	void getBindConstructorWhenHasOnlyDefaultConstructorReturnsNull() {
@@ -55,7 +56,7 @@ class DefaultBindConstructorProviderTests {
 		Constructor<?> constructor = this.provider.getBindConstructor(TwoConstructorsWithOneConstructorBinding.class,
 				false);
 		assertThat(constructor).isNotNull();
-		assertThat(constructor.getParameterCount()).isEqualTo(1);
+		assertThat(constructor.getParameterCount()).isOne();
 	}
 
 	@Test
@@ -73,9 +74,9 @@ class DefaultBindConstructorProviderTests {
 	@Test
 	void getBindConstructorWhenHasTwoConstructorsWithOneAutowiredAndOneConstructorBindingThrowsException() {
 		assertThatIllegalStateException()
-				.isThrownBy(() -> this.provider
-						.getBindConstructor(TwoConstructorsWithOneAutowiredAndOneConstructorBinding.class, false))
-				.withMessageContaining("declares @ConstructorBinding and @Autowired");
+			.isThrownBy(() -> this.provider
+				.getBindConstructor(TwoConstructorsWithOneAutowiredAndOneConstructorBinding.class, false))
+			.withMessageContaining("declares @ConstructorBinding and @Autowired");
 	}
 
 	@Test
@@ -88,9 +89,14 @@ class DefaultBindConstructorProviderTests {
 	@Test
 	void getBindConstructorWhenHasTwoConstructorsWithBothConstructorBindingThrowsException() {
 		assertThatIllegalStateException()
-				.isThrownBy(
-						() -> this.provider.getBindConstructor(TwoConstructorsWithBothConstructorBinding.class, false))
-				.withMessageContaining("has more than one @ConstructorBinding");
+			.isThrownBy(() -> this.provider.getBindConstructor(TwoConstructorsWithBothConstructorBinding.class, false))
+			.withMessageContaining("has more than one @ConstructorBinding");
+	}
+
+	@Test
+	void getBindConstructorWhenIsTypeWithPrivateConstructorReturnsNull() {
+		Constructor<?> constructor = this.provider.getBindConstructor(TypeWithPrivateConstructor.class, false);
+		assertThat(constructor).isNull();
 	}
 
 	@Test
@@ -108,6 +114,30 @@ class DefaultBindConstructorProviderTests {
 			Constructor<?> bindConstructor = this.provider.getBindConstructor(bean.getClass(), false);
 			assertThat(bindConstructor).isNull();
 		}
+	}
+
+	@Test
+	void getBindConstructorWhenHasExistingValueAndOneConstructorWithoutAnnotationsReturnsNull() {
+		OneConstructorWithoutAnnotations existingValue = new OneConstructorWithoutAnnotations("name", 123);
+		Bindable<?> bindable = Bindable.of(OneConstructorWithoutAnnotations.class).withExistingValue(existingValue);
+		Constructor<?> bindConstructor = this.provider.getBindConstructor(bindable, false);
+		assertThat(bindConstructor).isNull();
+	}
+
+	@Test
+	void getBindConstructorWhenHasExistingValueAndOneConstructorWithConstructorBindingReturnsConstructor() {
+		OneConstructorWithConstructorBinding existingValue = new OneConstructorWithConstructorBinding("name", 123);
+		Bindable<?> bindable = Bindable.of(OneConstructorWithConstructorBinding.class).withExistingValue(existingValue);
+		Constructor<?> bindConstructor = this.provider.getBindConstructor(bindable, false);
+		assertThat(bindConstructor).isNotNull();
+	}
+
+	@Test
+	void getBindConstructorWhenHasExistingValueAndValueIsRecordReturnsConstructor() {
+		OneConstructorOnRecord existingValue = new OneConstructorOnRecord("name", 123);
+		Bindable<?> bindable = Bindable.of(OneConstructorOnRecord.class).withExistingValue(existingValue);
+		Constructor<?> bindConstructor = this.provider.getBindConstructor(bindable, false);
+		assertThat(bindConstructor).isNotNull();
 	}
 
 	static class OnlyDefaultConstructor {
@@ -177,6 +207,17 @@ class DefaultBindConstructorProviderTests {
 
 	}
 
+	static class OneConstructorWithoutAnnotations {
+
+		OneConstructorWithoutAnnotations(String name, int age) {
+		}
+
+	}
+
+	record OneConstructorOnRecord(String name, int age) {
+
+	}
+
 	static class TwoConstructorsWithBothConstructorBinding {
 
 		@ConstructorBinding
@@ -186,6 +227,13 @@ class DefaultBindConstructorProviderTests {
 
 		@ConstructorBinding
 		TwoConstructorsWithBothConstructorBinding(String name, int age) {
+		}
+
+	}
+
+	static final class TypeWithPrivateConstructor {
+
+		private TypeWithPrivateConstructor(Environment environment) {
 		}
 
 	}

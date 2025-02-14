@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,13 +62,13 @@ class CloudFoundryWebEndpointDiscovererTests {
 	void getEndpointsShouldAddCloudFoundryHealthExtension() {
 		load(TestConfiguration.class, (discoverer) -> {
 			Collection<ExposableWebEndpoint> endpoints = discoverer.getEndpoints();
-			assertThat(endpoints.size()).isEqualTo(2);
+			assertThat(endpoints).hasSize(2);
 			for (ExposableWebEndpoint endpoint : endpoints) {
 				if (endpoint.getEndpointId().equals(EndpointId.of("health"))) {
 					WebOperation operation = findMainReadOperation(endpoint);
 					assertThat(operation
-							.invoke(new InvocationContext(mock(SecurityContext.class), Collections.emptyMap())))
-									.isEqualTo("cf");
+						.invoke(new InvocationContext(mock(SecurityContext.class), Collections.emptyMap())))
+						.isEqualTo("cf");
 				}
 			}
 		});
@@ -78,8 +78,9 @@ class CloudFoundryWebEndpointDiscovererTests {
 	void shouldRegisterHints() {
 		RuntimeHints runtimeHints = new RuntimeHints();
 		new CloudFoundryWebEndpointDiscovererRuntimeHints().registerHints(runtimeHints, getClass().getClassLoader());
-		assertThat(RuntimeHintsPredicates.reflection().onType(CloudFoundryEndpointFilter.class)
-				.withMemberCategories(MemberCategory.INVOKE_DECLARED_CONSTRUCTORS)).accepts(runtimeHints);
+		assertThat(RuntimeHintsPredicates.reflection()
+			.onType(CloudFoundryEndpointFilter.class)
+			.withMemberCategories(MemberCategory.INVOKE_DECLARED_CONSTRUCTORS)).accepts(runtimeHints);
 	}
 
 	private WebOperation findMainReadOperation(ExposableWebEndpoint endpoint) {
@@ -104,7 +105,8 @@ class CloudFoundryWebEndpointDiscovererTests {
 					Collections.singletonList("application/json"));
 			CloudFoundryWebEndpointDiscoverer discoverer = new CloudFoundryWebEndpointDiscoverer(context,
 					parameterMapper, mediaTypes, Collections.singletonList(endpointPathMapper),
-					Collections.singleton(new CachingOperationInvokerAdvisor(timeToLive)), Collections.emptyList());
+					Collections.singleton(new CachingOperationInvokerAdvisor(timeToLive)), Collections.emptyList(),
+					Collections.emptyList());
 			consumer.accept(discoverer);
 		}
 	}

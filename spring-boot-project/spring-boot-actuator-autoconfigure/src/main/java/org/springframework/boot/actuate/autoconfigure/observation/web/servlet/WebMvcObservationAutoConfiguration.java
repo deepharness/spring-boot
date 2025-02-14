@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,15 +16,11 @@
 
 package org.springframework.boot.actuate.autoconfigure.observation.web.servlet;
 
-import java.util.List;
-
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.config.MeterFilter;
 import io.micrometer.observation.Observation;
 import io.micrometer.observation.ObservationRegistry;
-import jakarta.servlet.DispatcherType;
 
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.actuate.autoconfigure.metrics.CompositeMeterRegistryAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.metrics.MetricsProperties;
@@ -32,23 +28,16 @@ import org.springframework.boot.actuate.autoconfigure.metrics.OnlyOnceLoggingDen
 import org.springframework.boot.actuate.autoconfigure.metrics.export.simple.SimpleMetricsExportAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.observation.ObservationAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.observation.ObservationProperties;
-import org.springframework.boot.actuate.metrics.web.servlet.WebMvcTagsContributor;
-import org.springframework.boot.actuate.metrics.web.servlet.WebMvcTagsProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
-import org.springframework.boot.autoconfigure.web.servlet.ConditionalOnMissingFilterBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.Ordered;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.server.observation.DefaultServerRequestObservationConvention;
-import org.springframework.http.server.observation.ServerRequestObservationConvention;
-import org.springframework.web.filter.ServerHttpObservationFilter;
 import org.springframework.web.servlet.DispatcherServlet;
 
 /**
@@ -66,44 +55,9 @@ import org.springframework.web.servlet.DispatcherServlet;
 @ConditionalOnClass({ DispatcherServlet.class, Observation.class })
 @ConditionalOnBean(ObservationRegistry.class)
 @EnableConfigurationProperties({ MetricsProperties.class, ObservationProperties.class })
-@SuppressWarnings("removal")
+@Import({ ObservationFilterConfigurations.TracingHeaderObservation.class,
+		ObservationFilterConfigurations.DefaultObservation.class })
 public class WebMvcObservationAutoConfiguration {
-
-	private final MetricsProperties metricsProperties;
-
-	private final ObservationProperties observationProperties;
-
-	public WebMvcObservationAutoConfiguration(ObservationProperties observationProperties,
-			MetricsProperties metricsProperties) {
-		this.observationProperties = observationProperties;
-		this.metricsProperties = metricsProperties;
-	}
-
-	@Bean
-	@ConditionalOnMissingFilterBean
-	public FilterRegistrationBean<ServerHttpObservationFilter> webMvcObservationFilter(ObservationRegistry registry,
-			ObjectProvider<WebMvcTagsProvider> customTagsProvider,
-			ObjectProvider<WebMvcTagsContributor> contributorsProvider) {
-		String name = httpRequestsMetricName(this.observationProperties, this.metricsProperties);
-		ServerRequestObservationConvention convention = new DefaultServerRequestObservationConvention(name);
-		WebMvcTagsProvider tagsProvider = customTagsProvider.getIfAvailable();
-		List<WebMvcTagsContributor> contributors = contributorsProvider.orderedStream().toList();
-		if (tagsProvider != null || contributors.size() > 0) {
-			convention = new ServerRequestObservationConventionAdapter(name, tagsProvider, contributors);
-		}
-		ServerHttpObservationFilter filter = new ServerHttpObservationFilter(registry, convention);
-		FilterRegistrationBean<ServerHttpObservationFilter> registration = new FilterRegistrationBean<>(filter);
-		registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 1);
-		registration.setDispatcherTypes(DispatcherType.REQUEST, DispatcherType.ASYNC);
-		return registration;
-	}
-
-	private static String httpRequestsMetricName(ObservationProperties observationProperties,
-			MetricsProperties metricsProperties) {
-		String observationName = observationProperties.getHttp().getServer().getRequests().getName();
-		return (observationName != null) ? observationName
-				: metricsProperties.getWeb().getServer().getRequest().getMetricName();
-	}
 
 	@Configuration(proxyBeanMethods = false)
 	@ConditionalOnClass(MeterRegistry.class)
@@ -112,9 +66,9 @@ public class WebMvcObservationAutoConfiguration {
 
 		@Bean
 		@Order(0)
-		MeterFilter metricsHttpServerUriTagFilter(MetricsProperties metricsProperties,
-				ObservationProperties observationProperties) {
-			String name = httpRequestsMetricName(observationProperties, metricsProperties);
+		MeterFilter metricsHttpServerUriTagFilter(ObservationProperties observationProperties,
+				MetricsProperties metricsProperties) {
+			String name = observationProperties.getHttp().getServer().getRequests().getName();
 			MeterFilter filter = new OnlyOnceLoggingDenyMeterFilter(
 					() -> String.format("Reached the maximum number of URI tags for '%s'.", name));
 			return MeterFilter.maximumAllowableTags(name, "uri", metricsProperties.getWeb().getServer().getMaxUriTags(),

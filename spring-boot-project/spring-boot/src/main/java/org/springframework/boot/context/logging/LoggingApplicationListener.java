@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -101,7 +101,7 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 			LogLevel.class);
 
 	private static final Bindable<Map<String, List<String>>> STRING_STRINGS_MAP = Bindable
-			.of(ResolvableType.forClassWithGenerics(MultiValueMap.class, String.class, String.class).asMap());
+		.of(ResolvableType.forClassWithGenerics(MultiValueMap.class, String.class, String.class).asMap());
 
 	/**
 	 * The default order for the LoggingApplicationListener.
@@ -225,8 +225,8 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 		else if (event instanceof ApplicationPreparedEvent preparedEvent) {
 			onApplicationPreparedEvent(preparedEvent);
 		}
-		else if (event instanceof ContextClosedEvent) {
-			onContextClosedEvent((ContextClosedEvent) event);
+		else if (event instanceof ContextClosedEvent contextClosedEvent) {
+			onContextClosedEvent(contextClosedEvent);
 		}
 		else if (event instanceof ApplicationFailedEvent) {
 			onApplicationFailedEvent();
@@ -335,7 +335,7 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 				system.initialize(initializationContext, logConfig, logFile);
 			}
 		}
-		catch (Exception ex) {
+		catch (Throwable ex) {
 			Throwable exceptionToReport = ex;
 			while (exceptionToReport != null && !(exceptionToReport instanceof FileNotFoundException)) {
 				exceptionToReport = exceptionToReport.getCause();
@@ -378,7 +378,7 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 	protected void initializeSpringBootLogging(LoggingSystem system, LogLevel springBootLogging) {
 		BiConsumer<String, LogLevel> configurer = getLogLevelConfigurer(system);
 		SPRING_BOOT_LOGGING_LOGGERS.getOrDefault(springBootLogging, Collections.emptyList())
-				.forEach((name) -> configureLogLevel(name, springBootLogging, configurer));
+			.forEach((name) -> configureLogLevel(name, springBootLogging, configurer));
 	}
 
 	/**
@@ -457,7 +457,7 @@ public class LoggingApplicationListener implements GenericApplicationListener {
 		this.parseArgs = parseArgs;
 	}
 
-	private class Lifecycle implements SmartLifecycle {
+	private final class Lifecycle implements SmartLifecycle {
 
 		private volatile boolean running;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,11 +34,11 @@ class ObservationRestTemplateCustomizerTests {
 
 	private static final String TEST_METRIC_NAME = "http.test.metric.name";
 
-	private ObservationRegistry observationRegistry = TestObservationRegistry.create();
+	private final ObservationRegistry observationRegistry = TestObservationRegistry.create();
 
-	private RestTemplate restTemplate = new RestTemplate();
+	private final RestTemplate restTemplate = new RestTemplate();
 
-	private ObservationRestTemplateCustomizer customizer = new ObservationRestTemplateCustomizer(
+	private final ObservationRestTemplateCustomizer customizer = new ObservationRestTemplateCustomizer(
 			this.observationRegistry, new DefaultClientRequestObservationConvention(TEST_METRIC_NAME));
 
 	@Test
@@ -46,8 +46,8 @@ class ObservationRestTemplateCustomizerTests {
 		this.customizer.customize(this.restTemplate);
 		assertThat(this.restTemplate).hasFieldOrPropertyWithValue("observationRegistry", this.observationRegistry);
 		assertThat(this.restTemplate).extracting("observationConvention")
-				.isInstanceOf(DefaultClientRequestObservationConvention.class)
-				.hasFieldOrPropertyWithValue("name", TEST_METRIC_NAME);
+			.isInstanceOf(DefaultClientRequestObservationConvention.class)
+			.hasFieldOrPropertyWithValue("name", TEST_METRIC_NAME);
 	}
 
 }

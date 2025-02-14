@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,13 +34,15 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternUtils;
 import org.springframework.core.type.AnnotatedTypeMetadata;
+import org.springframework.graphql.execution.GraphQlSource;
 
 /**
  * {@link Condition} that checks whether a GraphQL schema has been defined in the
  * application. This is looking for:
  * <ul>
  * <li>schema files in the {@link GraphQlProperties configured locations}</li>
- * <li>or infrastructure beans such as {@link GraphQlSourceBuilderCustomizer}</li>
+ * <li>or {@link GraphQlSourceBuilderCustomizer} beans</li>
+ * <li>or a {@link GraphQlSource} bean</li>
  * </ul>
  *
  * @author Brian Clozel
@@ -60,9 +62,9 @@ class DefaultGraphQlSchemaCondition extends SpringBootCondition implements Confi
 		ConditionMessage.Builder message = ConditionMessage.forCondition(ConditionalOnGraphQlSchema.class);
 		Binder binder = Binder.get(context.getEnvironment());
 		GraphQlProperties.Schema schema = binder.bind("spring.graphql.schema", GraphQlProperties.Schema.class)
-				.orElse(new GraphQlProperties.Schema());
+			.orElse(new GraphQlProperties.Schema());
 		ResourcePatternResolver resourcePatternResolver = ResourcePatternUtils
-				.getResourcePatternResolver(context.getResourceLoader());
+			.getResourcePatternResolver(context.getResourceLoader());
 		List<Resource> schemaResources = resolveSchemaResources(resourcePatternResolver, schema.getLocations(),
 				schema.getFileExtensions());
 		if (!schemaResources.isEmpty()) {
@@ -70,8 +72,8 @@ class DefaultGraphQlSchemaCondition extends SpringBootCondition implements Confi
 			messages.add(message.found("schema", "schemas").items(ConditionMessage.Style.QUOTE, schemaResources));
 		}
 		else {
-			messages.add(message.didNotFind("schema files in locations").items(ConditionMessage.Style.QUOTE,
-					Arrays.asList(schema.getLocations())));
+			messages.add(message.didNotFind("schema files in locations")
+				.items(ConditionMessage.Style.QUOTE, Arrays.asList(schema.getLocations())));
 		}
 		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
 		String[] customizerBeans = beanFactory.getBeanNamesForType(GraphQlSourceBuilderCustomizer.class, false, false);
@@ -81,6 +83,14 @@ class DefaultGraphQlSchemaCondition extends SpringBootCondition implements Confi
 		}
 		else {
 			messages.add((message.didNotFind("GraphQlSourceBuilderCustomizer").atAll()));
+		}
+		String[] graphQlSourceBeanNames = beanFactory.getBeanNamesForType(GraphQlSource.class, false, false);
+		if (graphQlSourceBeanNames.length != 0) {
+			match = true;
+			messages.add(message.found("GraphQlSource").items(Arrays.asList(graphQlSourceBeanNames)));
+		}
+		else {
+			messages.add((message.didNotFind("GraphQlSource").atAll()));
 		}
 		return new ConditionOutcome(match, ConditionMessage.of(messages));
 	}

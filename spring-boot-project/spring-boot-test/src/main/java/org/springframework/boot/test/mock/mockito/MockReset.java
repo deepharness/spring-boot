@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,14 +28,17 @@ import org.mockito.mock.MockCreationSettings;
 import org.springframework.util.Assert;
 
 /**
- * Reset strategy used on a mock bean. Usually applied to a mock via the
+ * Reset strategy used on a mock bean. Usually applied to a mock through the
  * {@link MockBean @MockBean} annotation but can also be directly applied to any mock in
  * the {@code ApplicationContext} using the static methods.
  *
  * @author Phillip Webb
  * @since 1.4.0
  * @see ResetMocksTestExecutionListener
+ * @deprecated since 3.4.0 for removal in 3.6.0 in favor of
+ * {@link org.springframework.test.context.bean.override.mockito.MockReset}
  */
+@Deprecated(since = "3.4.0", forRemoval = true)
 public enum MockReset {
 
 	/**
@@ -88,7 +91,7 @@ public enum MockReset {
 	 * @return the configured settings
 	 */
 	public static MockSettings apply(MockReset reset, MockSettings settings) {
-		Assert.notNull(settings, "Settings must not be null");
+		Assert.notNull(settings, "'settings' must not be null");
 		if (reset != null && reset != NONE) {
 			settings.invocationListeners(new ResetInvocationListener(reset));
 		}

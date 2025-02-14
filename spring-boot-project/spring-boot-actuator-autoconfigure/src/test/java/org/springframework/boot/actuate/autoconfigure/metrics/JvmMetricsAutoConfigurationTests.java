@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.springframework.boot.actuate.autoconfigure.metrics;
 
+import io.micrometer.core.instrument.binder.MeterBinder;
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmCompilationMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics;
@@ -24,7 +25,14 @@ import io.micrometer.core.instrument.binder.jvm.JvmInfoMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics;
 import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
+import org.junit.jupiter.api.condition.JRE;
 
+import org.springframework.aot.hint.MemberCategory;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.TypeReference;
+import org.springframework.aot.hint.predicate.RuntimeHintsPredicates;
+import org.springframework.beans.BeanUtils;
 import org.springframework.boot.actuate.autoconfigure.metrics.test.MetricsRun;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.assertj.AssertableApplicationContext;
@@ -32,6 +40,7 @@ import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.boot.test.context.runner.ContextConsumer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.ClassUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -45,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class JvmMetricsAutoConfigurationTests {
 
 	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner().with(MetricsRun.simple())
-			.withConfiguration(AutoConfigurations.of(JvmMetricsAutoConfiguration.class));
+		.withConfiguration(AutoConfigurations.of(JvmMetricsAutoConfiguration.class));
 
 	@Test
 	void autoConfiguresJvmMetrics() {
@@ -55,50 +64,90 @@ class JvmMetricsAutoConfigurationTests {
 	@Test
 	void allowsCustomJvmGcMetricsToBeUsed() {
 		this.contextRunner.withUserConfiguration(CustomJvmGcMetricsConfiguration.class)
-				.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmGcMetrics")));
+			.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmGcMetrics")));
 	}
 
 	@Test
 	void allowsCustomJvmHeapPressureMetricsToBeUsed() {
-		this.contextRunner.withUserConfiguration(CustomJvmHeapPressureMetricsConfiguration.class).run(
-				assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmHeapPressureMetrics")));
+		this.contextRunner.withUserConfiguration(CustomJvmHeapPressureMetricsConfiguration.class)
+			.run(assertMetricsBeans()
+				.andThen((context) -> assertThat(context).hasBean("customJvmHeapPressureMetrics")));
 	}
 
 	@Test
 	void allowsCustomJvmMemoryMetricsToBeUsed() {
 		this.contextRunner.withUserConfiguration(CustomJvmMemoryMetricsConfiguration.class)
-				.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmMemoryMetrics")));
+			.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmMemoryMetrics")));
 	}
 
 	@Test
 	void allowsCustomJvmThreadMetricsToBeUsed() {
 		this.contextRunner.withUserConfiguration(CustomJvmThreadMetricsConfiguration.class)
-				.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmThreadMetrics")));
+			.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmThreadMetrics")));
 	}
 
 	@Test
 	void allowsCustomClassLoaderMetricsToBeUsed() {
-		this.contextRunner.withUserConfiguration(CustomClassLoaderMetricsConfiguration.class).run(
-				assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customClassLoaderMetrics")));
+		this.contextRunner.withUserConfiguration(CustomClassLoaderMetricsConfiguration.class)
+			.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customClassLoaderMetrics")));
 	}
 
 	@Test
 	void allowsCustomJvmInfoMetricsToBeUsed() {
 		this.contextRunner.withUserConfiguration(CustomJvmInfoMetricsConfiguration.class)
-				.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmInfoMetrics")));
+			.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmInfoMetrics")));
 	}
 
 	@Test
 	void allowsCustomJvmCompilationMetricsToBeUsed() {
-		this.contextRunner.withUserConfiguration(CustomJvmCompilationMetricsConfiguration.class).run(
-				assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmCompilationMetrics")));
+		this.contextRunner.withUserConfiguration(CustomJvmCompilationMetricsConfiguration.class)
+			.run(assertMetricsBeans().andThen((context) -> assertThat(context).hasBean("customJvmCompilationMetrics")));
+	}
+
+	@Test
+	@EnabledForJreRange(min = JRE.JAVA_21)
+	void autoConfiguresJvmMetricsWithVirtualThreadsMetrics() {
+		this.contextRunner.run(assertMetricsBeans()
+			.andThen((context) -> assertThat(context).hasSingleBean(getVirtualThreadMetricsClass())));
+	}
+
+	@Test
+	@EnabledForJreRange(min = JRE.JAVA_21)
+	void allowCustomVirtualThreadMetricsToBeUsed() {
+		Class<MeterBinder> virtualThreadMetricsClass = getVirtualThreadMetricsClass();
+		this.contextRunner
+			.withBean("customVirtualThreadMetrics", virtualThreadMetricsClass,
+					() -> BeanUtils.instantiateClass(virtualThreadMetricsClass))
+			.run(assertMetricsBeans()
+				.andThen((context) -> assertThat(context).hasSingleBean(getVirtualThreadMetricsClass())
+					.hasBean("customVirtualThreadMetrics")));
+	}
+
+	@Test
+	@EnabledForJreRange(min = JRE.JAVA_21)
+	void shouldRegisterVirtualThreadMetricsRuntimeHints() {
+		RuntimeHints hints = new RuntimeHints();
+		new JvmMetricsAutoConfiguration.VirtualThreadMetricsRuntimeHintsRegistrar().registerHints(hints,
+				getClass().getClassLoader());
+		assertThat(RuntimeHintsPredicates.reflection()
+			.onType(TypeReference.of(getVirtualThreadMetricsClass()))
+			.withMemberCategories(MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS)).accepts(hints);
 	}
 
 	private ContextConsumer<AssertableApplicationContext> assertMetricsBeans() {
 		return (context) -> assertThat(context).hasSingleBean(JvmGcMetrics.class)
-				.hasSingleBean(JvmHeapPressureMetrics.class).hasSingleBean(JvmMemoryMetrics.class)
-				.hasSingleBean(JvmThreadMetrics.class).hasSingleBean(ClassLoaderMetrics.class)
-				.hasSingleBean(JvmInfoMetrics.class).hasSingleBean(JvmCompilationMetrics.class);
+			.hasSingleBean(JvmHeapPressureMetrics.class)
+			.hasSingleBean(JvmMemoryMetrics.class)
+			.hasSingleBean(JvmThreadMetrics.class)
+			.hasSingleBean(ClassLoaderMetrics.class)
+			.hasSingleBean(JvmInfoMetrics.class)
+			.hasSingleBean(JvmCompilationMetrics.class);
+	}
+
+	@SuppressWarnings("unchecked")
+	private static Class<MeterBinder> getVirtualThreadMetricsClass() {
+		return (Class<MeterBinder>) ClassUtils
+			.resolveClassName("io.micrometer.java21.instrument.binder.jdk.VirtualThreadMetrics", null);
 	}
 
 	@Configuration(proxyBeanMethods = false)

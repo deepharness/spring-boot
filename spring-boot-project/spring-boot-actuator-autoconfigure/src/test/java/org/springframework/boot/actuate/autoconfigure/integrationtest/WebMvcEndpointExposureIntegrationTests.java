@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,6 @@ import org.springframework.boot.actuate.autoconfigure.health.HealthContributorAu
 import org.springframework.boot.actuate.autoconfigure.web.exchanges.HttpExchangesAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.web.server.ManagementContextAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.web.servlet.ServletManagementContextAutoConfiguration;
-import org.springframework.boot.actuate.endpoint.web.EndpointServlet;
-import org.springframework.boot.actuate.endpoint.web.annotation.RestControllerEndpoint;
-import org.springframework.boot.actuate.endpoint.web.annotation.ServletEndpoint;
 import org.springframework.boot.actuate.web.exchanges.InMemoryHttpExchangeRepository;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.http.HttpMessageConvertersAutoConfiguration;
@@ -68,17 +65,17 @@ class WebMvcEndpointExposureIntegrationTests {
 
 	private final WebApplicationContextRunner contextRunner = new WebApplicationContextRunner(
 			AnnotationConfigServletWebServerApplicationContext::new)
-					.withConfiguration(AutoConfigurations.of(ServletWebServerFactoryAutoConfiguration.class,
-							DispatcherServletAutoConfiguration.class, JacksonAutoConfiguration.class,
-							HttpMessageConvertersAutoConfiguration.class, WebMvcAutoConfiguration.class,
-							EndpointAutoConfiguration.class, WebEndpointAutoConfiguration.class,
-							ManagementContextAutoConfiguration.class, ServletManagementContextAutoConfiguration.class,
-							ManagementContextAutoConfiguration.class, ServletManagementContextAutoConfiguration.class,
-							HttpExchangesAutoConfiguration.class, HealthContributorAutoConfiguration.class))
-					.withConfiguration(AutoConfigurations.of(EndpointAutoConfigurationClasses.ALL))
-					.withUserConfiguration(CustomMvcEndpoint.class, CustomServletEndpoint.class,
-							HttpExchangeRepositoryConfiguration.class, AuditEventRepositoryConfiguration.class)
-					.withPropertyValues("server.port:0");
+		.withConfiguration(AutoConfigurations.of(ServletWebServerFactoryAutoConfiguration.class,
+				DispatcherServletAutoConfiguration.class, JacksonAutoConfiguration.class,
+				HttpMessageConvertersAutoConfiguration.class, WebMvcAutoConfiguration.class,
+				EndpointAutoConfiguration.class, WebEndpointAutoConfiguration.class,
+				ManagementContextAutoConfiguration.class, ServletManagementContextAutoConfiguration.class,
+				ManagementContextAutoConfiguration.class, ServletManagementContextAutoConfiguration.class,
+				HttpExchangesAutoConfiguration.class, HealthContributorAutoConfiguration.class))
+		.withConfiguration(AutoConfigurations.of(EndpointAutoConfigurationClasses.ALL))
+		.withUserConfiguration(CustomMvcEndpoint.class, CustomServletEndpoint.class,
+				HttpExchangeRepositoryConfiguration.class, AuditEventRepositoryConfiguration.class)
+		.withPropertyValues("server.port:0");
 
 	@Test
 	void webEndpointsAreDisabledByDefault() {
@@ -102,7 +99,7 @@ class WebMvcEndpointExposureIntegrationTests {
 	@Test
 	void webEndpointsCanBeExposed() {
 		WebApplicationContextRunner contextRunner = this.contextRunner
-				.withPropertyValues("management.endpoints.web.exposure.include=*");
+			.withPropertyValues("management.endpoints.web.exposure.include=*");
 		contextRunner.run((context) -> {
 			WebTestClient client = createClient(context);
 			assertThat(isExposed(client, HttpMethod.GET, "beans")).isTrue();
@@ -123,7 +120,7 @@ class WebMvcEndpointExposureIntegrationTests {
 	@Test
 	void singleWebEndpointCanBeExposed() {
 		WebApplicationContextRunner contextRunner = this.contextRunner
-				.withPropertyValues("management.endpoints.web.exposure.include=beans");
+			.withPropertyValues("management.endpoints.web.exposure.include=beans");
 		contextRunner.run((context) -> {
 			WebTestClient client = createClient(context);
 			assertThat(isExposed(client, HttpMethod.GET, "beans")).isTrue();
@@ -163,12 +160,17 @@ class WebMvcEndpointExposureIntegrationTests {
 	}
 
 	private WebTestClient createClient(AssertableWebApplicationContext context) {
-		int port = context.getSourceApplicationContext(ServletWebServerApplicationContext.class).getWebServer()
-				.getPort();
+		int port = context.getSourceApplicationContext(ServletWebServerApplicationContext.class)
+			.getWebServer()
+			.getPort();
 		ExchangeStrategies exchangeStrategies = ExchangeStrategies.builder()
-				.codecs((configurer) -> configurer.defaultCodecs().maxInMemorySize(-1)).build();
-		return WebTestClient.bindToServer().baseUrl("http://localhost:" + port).exchangeStrategies(exchangeStrategies)
-				.responseTimeout(Duration.ofMinutes(5)).build();
+			.codecs((configurer) -> configurer.defaultCodecs().maxInMemorySize(-1))
+			.build();
+		return WebTestClient.bindToServer()
+			.baseUrl("http://localhost:" + port)
+			.exchangeStrategies(exchangeStrategies)
+			.responseTimeout(Duration.ofMinutes(5))
+			.build();
 	}
 
 	private boolean isExposed(WebTestClient client, HttpMethod method, String path) {
@@ -184,7 +186,8 @@ class WebMvcEndpointExposureIntegrationTests {
 				String.format("Unexpected %s HTTP status for endpoint %s", result.getStatus(), path));
 	}
 
-	@RestControllerEndpoint(id = "custommvc")
+	@org.springframework.boot.actuate.endpoint.web.annotation.RestControllerEndpoint(id = "custommvc")
+	@SuppressWarnings("removal")
 	static class CustomMvcEndpoint {
 
 		@GetMapping("/")
@@ -194,12 +197,14 @@ class WebMvcEndpointExposureIntegrationTests {
 
 	}
 
-	@ServletEndpoint(id = "customservlet")
-	static class CustomServletEndpoint implements Supplier<EndpointServlet> {
+	@org.springframework.boot.actuate.endpoint.web.annotation.ServletEndpoint(id = "customservlet")
+	@SuppressWarnings({ "deprecation", "removal" })
+	static class CustomServletEndpoint
+			implements Supplier<org.springframework.boot.actuate.endpoint.web.EndpointServlet> {
 
 		@Override
-		public EndpointServlet get() {
-			return new EndpointServlet(new HttpServlet() {
+		public org.springframework.boot.actuate.endpoint.web.EndpointServlet get() {
+			return new org.springframework.boot.actuate.endpoint.web.EndpointServlet(new HttpServlet() {
 
 				@Override
 				protected void doGet(HttpServletRequest req, HttpServletResponse resp)

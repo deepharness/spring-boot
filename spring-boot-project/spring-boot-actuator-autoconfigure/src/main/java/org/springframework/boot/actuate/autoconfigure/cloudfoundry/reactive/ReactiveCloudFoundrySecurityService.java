@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.Http11SslContextSpec;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.tcp.SslProvider.GenericSslContextSpec;
 
 import org.springframework.boot.actuate.autoconfigure.cloudfoundry.AccessLevel;
 import org.springframework.boot.actuate.autoconfigure.cloudfoundry.CloudFoundryAuthorizationException;
@@ -46,19 +47,17 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
  */
 class ReactiveCloudFoundrySecurityService {
 
-	private static final ParameterizedTypeReference<Map<String, Object>> STRING_OBJECT_MAP = new ParameterizedTypeReference<Map<String, Object>>() {
+	private static final ParameterizedTypeReference<Map<String, Object>> STRING_OBJECT_MAP = new ParameterizedTypeReference<>() {
 	};
 
 	private final WebClient webClient;
 
 	private final String cloudControllerUrl;
 
-	private Mono<String> uaaUrl;
-
 	ReactiveCloudFoundrySecurityService(WebClient.Builder webClientBuilder, String cloudControllerUrl,
 			boolean skipSslValidation) {
-		Assert.notNull(webClientBuilder, "WebClient must not be null");
-		Assert.notNull(cloudControllerUrl, "CloudControllerUrl must not be null");
+		Assert.notNull(webClientBuilder, "'webClientBuilder' must not be null");
+		Assert.notNull(cloudControllerUrl, "'cloudControllerUrl' must not be null");
 		if (skipSslValidation) {
 			webClientBuilder.clientConnector(buildTrustAllSslConnector());
 		}
@@ -71,9 +70,10 @@ class ReactiveCloudFoundrySecurityService {
 		return new ReactorClientHttpConnector(client);
 	}
 
-	private Http11SslContextSpec createSslContextSpec() {
-		return Http11SslContextSpec.forClient().configure(
-				(builder) -> builder.sslProvider(SslProvider.JDK).trustManager(InsecureTrustManagerFactory.INSTANCE));
+	private GenericSslContextSpec<?> createSslContextSpec() {
+		return Http11SslContextSpec.forClient()
+			.configure((builder) -> builder.sslProvider(SslProvider.JDK)
+				.trustManager(InsecureTrustManagerFactory.INSTANCE));
 	}
 
 	/**
@@ -85,8 +85,13 @@ class ReactiveCloudFoundrySecurityService {
 	 */
 	Mono<AccessLevel> getAccessLevel(String token, String applicationId) throws CloudFoundryAuthorizationException {
 		String uri = getPermissionsUri(applicationId);
-		return this.webClient.get().uri(uri).header("Authorization", "bearer " + token).retrieve().bodyToMono(Map.class)
-				.map(this::getAccessLevel).onErrorMap(this::mapError);
+		return this.webClient.get()
+			.uri(uri)
+			.header("Authorization", "bearer " + token)
+			.retrieve()
+			.bodyToMono(Map.class)
+			.map(this::getAccessLevel)
+			.onErrorMap(this::mapError);
 	}
 
 	private Throwable mapError(Throwable throwable) {
@@ -123,8 +128,10 @@ class ReactiveCloudFoundrySecurityService {
 
 	private Mono<? extends Map<String, String>> fetchTokenKeys(String url) {
 		RequestHeadersSpec<?> uri = this.webClient.get().uri(url + "/token_keys");
-		return uri.retrieve().bodyToMono(STRING_OBJECT_MAP).map(this::extractTokenKeys).onErrorMap(
-				((ex) -> new CloudFoundryAuthorizationException(Reason.SERVICE_UNAVAILABLE, ex.getMessage())));
+		return uri.retrieve()
+			.bodyToMono(STRING_OBJECT_MAP)
+			.map(this::extractTokenKeys)
+			.onErrorMap(((ex) -> new CloudFoundryAuthorizationException(Reason.SERVICE_UNAVAILABLE, ex.getMessage())));
 	}
 
 	private Map<String, String> extractTokenKeys(Map<String, Object> response) {
@@ -141,11 +148,14 @@ class ReactiveCloudFoundrySecurityService {
 	 * @return the UAA url Mono
 	 */
 	Mono<String> getUaaUrl() {
-		this.uaaUrl = this.webClient.get().uri(this.cloudControllerUrl + "/info").retrieve().bodyToMono(Map.class)
-				.map((response) -> (String) response.get("token_endpoint")).cache()
-				.onErrorMap((ex) -> new CloudFoundryAuthorizationException(Reason.SERVICE_UNAVAILABLE,
-						"Unable to fetch token keys from UAA."));
-		return this.uaaUrl;
+		return this.webClient.get()
+			.uri(this.cloudControllerUrl + "/info")
+			.retrieve()
+			.bodyToMono(Map.class)
+			.map((response) -> (String) response.get("token_endpoint"))
+			.cache()
+			.onErrorMap((ex) -> new CloudFoundryAuthorizationException(Reason.SERVICE_UNAVAILABLE,
+					"Unable to fetch token keys from UAA."));
 	}
 
 }

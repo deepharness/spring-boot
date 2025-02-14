@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ public enum DurationStyle {
 				Assert.state(matcher.matches(), "Does not match simple duration pattern");
 				String suffix = matcher.group(2);
 				return (StringUtils.hasLength(suffix) ? Unit.fromSuffix(suffix) : Unit.fromChronoUnit(unit))
-						.parse(matcher.group(1));
+					.parse(matcher.group(1));
 			}
 			catch (Exception ex) {
 				throw new IllegalArgumentException("'" + value + "' is not a valid simple duration", ex);
@@ -162,7 +162,7 @@ public enum DurationStyle {
 	 * @throws IllegalArgumentException if the value is not a known style
 	 */
 	public static DurationStyle detect(String value) {
-		Assert.notNull(value, "Value must not be null");
+		Assert.notNull(value, "'value' must not be null");
 		for (DurationStyle candidate : values()) {
 			if (candidate.matches(value)) {
 				return candidate;
@@ -215,7 +215,7 @@ public enum DurationStyle {
 
 		private final String suffix;
 
-		private Function<Duration, Long> longValue;
+		private final Function<Duration, Long> longValue;
 
 		Unit(ChronoUnit chronoUnit, String suffix, Function<Duration, Long> toUnit) {
 			this.chronoUnit = chronoUnit;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,11 +32,13 @@ import org.gradle.api.plugins.PluginContainer;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.MavenPom;
 import org.gradle.api.publish.maven.MavenPublication;
+import org.gradle.api.tasks.TaskProvider;
 
 import org.springframework.boot.build.DeployedPlugin;
 import org.springframework.boot.build.MavenRepositoryPlugin;
 import org.springframework.boot.build.bom.Library.Group;
 import org.springframework.boot.build.bom.Library.Module;
+import org.springframework.boot.build.bom.bomr.MoveToSnapshots;
 import org.springframework.boot.build.bom.bomr.UpgradeBom;
 
 /**
@@ -59,25 +61,28 @@ public class BomPlugin implements Plugin<Project> {
 		JavaPlatformExtension javaPlatform = project.getExtensions().getByType(JavaPlatformExtension.class);
 		javaPlatform.allowDependencies();
 		createApiEnforcedConfiguration(project);
-		BomExtension bom = project.getExtensions().create("bom", BomExtension.class, project.getDependencies(),
-				project);
-		project.getTasks().create("bomrCheck", CheckBom.class, bom);
-		project.getTasks().create("bomrUpgrade", UpgradeBom.class, bom);
+		BomExtension bom = project.getExtensions().create("bom", BomExtension.class, project);
+		TaskProvider<CheckBom> checkBom = project.getTasks().register("bomrCheck", CheckBom.class, bom);
+		project.getTasks().named("check").configure((check) -> check.dependsOn(checkBom));
+		project.getTasks().register("bomrUpgrade", UpgradeBom.class, bom);
+		project.getTasks().register("moveToSnapshots", MoveToSnapshots.class, bom);
+		project.getTasks().register("checkLinks", CheckLinks.class, bom);
 		new PublishingCustomizer(project, bom).customize();
-
 	}
 
 	private void createApiEnforcedConfiguration(Project project) {
-		Configuration apiEnforced = project.getConfigurations().create(API_ENFORCED_CONFIGURATION_NAME,
-				(configuration) -> {
-					configuration.setCanBeConsumed(false);
-					configuration.setCanBeResolved(false);
-					configuration.setVisible(false);
-				});
-		project.getConfigurations().getByName(JavaPlatformPlugin.ENFORCED_API_ELEMENTS_CONFIGURATION_NAME)
-				.extendsFrom(apiEnforced);
-		project.getConfigurations().getByName(JavaPlatformPlugin.ENFORCED_RUNTIME_ELEMENTS_CONFIGURATION_NAME)
-				.extendsFrom(apiEnforced);
+		Configuration apiEnforced = project.getConfigurations()
+			.create(API_ENFORCED_CONFIGURATION_NAME, (configuration) -> {
+				configuration.setCanBeConsumed(false);
+				configuration.setCanBeResolved(false);
+				configuration.setVisible(false);
+			});
+		project.getConfigurations()
+			.getByName(JavaPlatformPlugin.ENFORCED_API_ELEMENTS_CONFIGURATION_NAME)
+			.extendsFrom(apiEnforced);
+		project.getConfigurations()
+			.getByName(JavaPlatformPlugin.ENFORCED_RUNTIME_ELEMENTS_CONFIGURATION_NAME)
+			.extendsFrom(apiEnforced);
 	}
 
 	private static final class PublishingCustomizer {
@@ -153,16 +158,19 @@ public class BomPlugin implements Plugin<Project> {
 				for (Node dependency : findChildren(dependencies, "dependency")) {
 					String groupId = findChild(dependency, "groupId").text();
 					String artifactId = findChild(dependency, "artifactId").text();
-					this.bom.getLibraries().stream().flatMap((library) -> library.getGroups().stream())
-							.filter((group) -> group.getId().equals(groupId))
-							.flatMap((group) -> group.getModules().stream())
-							.filter((module) -> module.getName().equals(artifactId))
-							.flatMap((module) -> module.getExclusions().stream()).forEach((exclusion) -> {
-								Node exclusions = findOrCreateNode(dependency, "exclusions");
-								Node node = new Node(exclusions, "exclusion");
-								node.appendNode("groupId", exclusion.getGroupId());
-								node.appendNode("artifactId", exclusion.getArtifactId());
-							});
+					this.bom.getLibraries()
+						.stream()
+						.flatMap((library) -> library.getGroups().stream())
+						.filter((group) -> group.getId().equals(groupId))
+						.flatMap((group) -> group.getModules().stream())
+						.filter((module) -> module.getName().equals(artifactId))
+						.flatMap((module) -> module.getExclusions().stream())
+						.forEach((exclusion) -> {
+							Node exclusions = findOrCreateNode(dependency, "exclusions");
+							Node node = new Node(exclusions, "exclusion");
+							node.appendNode("groupId", exclusion.getGroupId());
+							node.appendNode("artifactId", exclusion.getArtifactId());
+						});
 				}
 			}
 		}
@@ -173,12 +181,15 @@ public class BomPlugin implements Plugin<Project> {
 				for (Node dependency : findChildren(dependencies, "dependency")) {
 					String groupId = findChild(dependency, "groupId").text();
 					String artifactId = findChild(dependency, "artifactId").text();
-					Set<String> types = this.bom.getLibraries().stream()
-							.flatMap((library) -> library.getGroups().stream())
-							.filter((group) -> group.getId().equals(groupId))
-							.flatMap((group) -> group.getModules().stream())
-							.filter((module) -> module.getName().equals(artifactId)).map(Module::getType)
-							.filter(Objects::nonNull).collect(Collectors.toSet());
+					Set<String> types = this.bom.getLibraries()
+						.stream()
+						.flatMap((library) -> library.getGroups().stream())
+						.filter((group) -> group.getId().equals(groupId))
+						.flatMap((group) -> group.getModules().stream())
+						.filter((module) -> module.getName().equals(artifactId))
+						.map(Module::getType)
+						.filter(Objects::nonNull)
+						.collect(Collectors.toSet());
 					if (types.size() > 1) {
 						throw new IllegalStateException(
 								"Multiple types for " + groupId + ":" + artifactId + ": " + types);
@@ -199,15 +210,18 @@ public class BomPlugin implements Plugin<Project> {
 					String groupId = findChild(dependency, "groupId").text();
 					String artifactId = findChild(dependency, "artifactId").text();
 					String version = findChild(dependency, "version").text();
-					Set<String> classifiers = this.bom.getLibraries().stream()
-							.flatMap((library) -> library.getGroups().stream())
-							.filter((group) -> group.getId().equals(groupId))
-							.flatMap((group) -> group.getModules().stream())
-							.filter((module) -> module.getName().equals(artifactId)).map(Module::getClassifier)
-							.filter(Objects::nonNull).collect(Collectors.toSet());
+					Set<String> classifiers = this.bom.getLibraries()
+						.stream()
+						.flatMap((library) -> library.getGroups().stream())
+						.filter((group) -> group.getId().equals(groupId))
+						.flatMap((group) -> group.getModules().stream())
+						.filter((module) -> module.getName().equals(artifactId))
+						.map(Module::getClassifier)
+						.filter(Objects::nonNull)
+						.collect(Collectors.toSet());
 					Node target = dependency;
 					for (String classifier : classifiers) {
-						if (classifier.length() > 0) {
+						if (!classifier.isEmpty()) {
 							if (target == null) {
 								target = new Node(null, "dependency");
 								target.appendNode("groupId", groupId);
@@ -255,13 +269,8 @@ public class BomPlugin implements Plugin<Project> {
 
 		private Node findChild(Node parent, String name) {
 			for (Object child : parent.children()) {
-				if (child instanceof Node node) {
-					if ((node.name() instanceof QName qname) && name.equals(qname.getLocalPart())) {
-						return node;
-					}
-					if (name.equals(node.name())) {
-						return node;
-					}
+				if (isNodeWithName(child, name)) {
+					return (Node) child;
 				}
 			}
 			return null;
@@ -277,9 +286,7 @@ public class BomPlugin implements Plugin<Project> {
 				if ((node.name() instanceof QName qname) && name.equals(qname.getLocalPart())) {
 					return true;
 				}
-				if (name.equals(node.name())) {
-					return true;
-				}
+				return name.equals(node.name());
 			}
 			return false;
 		}

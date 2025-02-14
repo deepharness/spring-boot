@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -49,7 +49,7 @@ import org.springframework.web.context.support.GenericWebApplicationContext;
  * <p>
  * Note: In case of multiple {@code @Configuration} classes, later {@code @Bean}
  * definitions will override ones defined in earlier loaded files. This can be leveraged
- * to deliberately override certain bean definitions via an extra Configuration class.
+ * to deliberately override certain bean definitions through an extra Configuration class.
  *
  * @author Stephane Nicoll
  * @since 2.2.0
@@ -174,7 +174,7 @@ public class AnnotationConfigServletWebApplicationContext extends GenericWebAppl
 	 */
 	@Override
 	public final void register(Class<?>... annotatedClasses) {
-		Assert.notEmpty(annotatedClasses, "At least one annotated class must be specified");
+		Assert.notEmpty(annotatedClasses, "'annotatedClasses' must not be empty");
 		this.annotatedClasses.addAll(Arrays.asList(annotatedClasses));
 	}
 
@@ -187,7 +187,7 @@ public class AnnotationConfigServletWebApplicationContext extends GenericWebAppl
 	 */
 	@Override
 	public final void scan(String... basePackages) {
-		Assert.notEmpty(basePackages, "At least one base package must be specified");
+		Assert.notEmpty(basePackages, "'basePackages' must not be empty");
 		this.basePackages = basePackages;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -121,14 +121,14 @@ class CommandRunnerTests {
 	@Test
 	void handlesSuccess() {
 		int status = this.commandRunner.runAndHandleErrors("command");
-		assertThat(status).isEqualTo(0);
+		assertThat(status).isZero();
 		assertThat(this.calls).isEmpty();
 	}
 
 	@Test
 	void handlesNoSuchCommand() {
 		int status = this.commandRunner.runAndHandleErrors("missing");
-		assertThat(status).isEqualTo(1);
+		assertThat(status).isOne();
 		assertThat(this.calls).containsOnly(Call.ERROR_MESSAGE);
 	}
 
@@ -136,7 +136,7 @@ class CommandRunnerTests {
 	void handlesRegularExceptionWithMessage() throws Exception {
 		willThrow(new RuntimeException("With Message")).given(this.regularCommand).run();
 		int status = this.commandRunner.runAndHandleErrors("command");
-		assertThat(status).isEqualTo(1);
+		assertThat(status).isOne();
 		assertThat(this.calls).containsOnly(Call.ERROR_MESSAGE);
 	}
 
@@ -144,7 +144,7 @@ class CommandRunnerTests {
 	void handlesRegularExceptionWithoutMessage() throws Exception {
 		willThrow(new RuntimeException()).given(this.regularCommand).run();
 		int status = this.commandRunner.runAndHandleErrors("command");
-		assertThat(status).isEqualTo(1);
+		assertThat(status).isOne();
 		assertThat(this.calls).containsOnly(Call.ERROR_MESSAGE, Call.PRINT_STACK_TRACE);
 	}
 
@@ -153,14 +153,14 @@ class CommandRunnerTests {
 		willThrow(new RuntimeException()).given(this.regularCommand).run();
 		int status = this.commandRunner.runAndHandleErrors("command", "--debug");
 		assertThat(System.getProperty("debug")).isEqualTo("true");
-		assertThat(status).isEqualTo(1);
+		assertThat(status).isOne();
 		assertThat(this.calls).containsOnly(Call.ERROR_MESSAGE, Call.PRINT_STACK_TRACE);
 	}
 
 	@Test
 	void exceptionMessages() {
 		assertThat(new NoSuchCommandException("name").getMessage())
-				.isEqualTo("'name' is not a valid command. See 'help'.");
+			.isEqualTo("'name' is not a valid command. See 'help'.");
 	}
 
 	@Test
@@ -172,13 +172,13 @@ class CommandRunnerTests {
 	@Test
 	void helpNoCommand() {
 		assertThatExceptionOfType(NoHelpCommandArgumentsException.class)
-				.isThrownBy(() -> this.commandRunner.run("help"));
+			.isThrownBy(() -> this.commandRunner.run("help"));
 	}
 
 	@Test
 	void helpUnknownCommand() {
 		assertThatExceptionOfType(NoSuchCommandException.class)
-				.isThrownBy(() -> this.commandRunner.run("help", "missing"));
+			.isThrownBy(() -> this.commandRunner.run("help", "missing"));
 	}
 
 	private enum Call {
