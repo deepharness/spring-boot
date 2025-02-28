@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,12 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import com.wavefront.sdk.common.clients.service.token.TokenService.Type;
 
 import org.springframework.boot.actuate.autoconfigure.metrics.export.properties.PushRegistryProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -30,9 +36,10 @@ import org.springframework.util.unit.DataSize;
  * Configuration properties to configure Wavefront.
  *
  * @author Moritz Halbritter
+ * @author Glenn Oppegard
  * @since 3.0.0
  */
-@ConfigurationProperties(prefix = "management.wavefront")
+@ConfigurationProperties("management.wavefront")
 public class WavefrontProperties {
 
 	/**
@@ -53,6 +60,16 @@ public class WavefrontProperties {
 	private String apiToken;
 
 	/**
+	 * Type of the API token.
+	 */
+	private TokenType apiTokenType;
+
+	/**
+	 * Application configuration.
+	 */
+	private final Application application = new Application();
+
+	/**
 	 * Sender configuration.
 	 */
 	private final Sender sender = new Sender();
@@ -63,9 +80,13 @@ public class WavefrontProperties {
 	private final Metrics metrics = new Metrics();
 
 	/**
-	 * Tracing configuration.
+	 * Customized span tags for RED metrics.
 	 */
-	private final Tracing tracing = new Tracing();
+	private Set<String> traceDerivedCustomTagKeys = new HashSet<>();
+
+	public Application getApplication() {
+		return this.application;
+	}
 
 	public Sender getSender() {
 		return this.sender;
@@ -73,10 +94,6 @@ public class WavefrontProperties {
 
 	public Metrics getMetrics() {
 		return this.metrics;
-	}
-
-	public Tracing getTracing() {
-		return this.tracing;
 	}
 
 	public URI getUri() {
@@ -122,7 +139,7 @@ public class WavefrontProperties {
 	 * @return the API token
 	 */
 	public String getApiTokenOrThrow() {
-		if (this.apiToken == null && !usesProxy()) {
+		if (this.apiTokenType != TokenType.NO_TOKEN && this.apiToken == null && !usesProxy()) {
 			throw new InvalidConfigurationPropertyValueException("management.wavefront.api-token", null,
 					"This property is mandatory whenever publishing directly to the Wavefront API");
 		}
@@ -147,6 +164,109 @@ public class WavefrontProperties {
 
 	private boolean usesProxy() {
 		return "proxy".equals(this.uri.getScheme());
+	}
+
+	public Set<String> getTraceDerivedCustomTagKeys() {
+		return this.traceDerivedCustomTagKeys;
+	}
+
+	public void setTraceDerivedCustomTagKeys(Set<String> traceDerivedCustomTagKeys) {
+		this.traceDerivedCustomTagKeys = traceDerivedCustomTagKeys;
+	}
+
+	public TokenType getApiTokenType() {
+		return this.apiTokenType;
+	}
+
+	public void setApiTokenType(TokenType apiTokenType) {
+		this.apiTokenType = apiTokenType;
+	}
+
+	/**
+	 * Returns the {@link Type Wavefront token type}.
+	 * @return the Wavefront token type
+	 * @since 3.2.0
+	 */
+	public Type getWavefrontApiTokenType() {
+		if (this.apiTokenType == null) {
+			return usesProxy() ? Type.NO_TOKEN : Type.WAVEFRONT_API_TOKEN;
+		}
+		return switch (this.apiTokenType) {
+			case NO_TOKEN -> Type.NO_TOKEN;
+			case WAVEFRONT_API_TOKEN -> Type.WAVEFRONT_API_TOKEN;
+			case CSP_API_TOKEN -> Type.CSP_API_TOKEN;
+			case CSP_CLIENT_CREDENTIALS -> Type.CSP_CLIENT_CREDENTIALS;
+		};
+	}
+
+	public static class Application {
+
+		/**
+		 * Wavefront 'Application' name used in ApplicationTags.
+		 */
+		private String name = "unnamed_application";
+
+		/**
+		 * Wavefront 'Service' name used in ApplicationTags, falling back to
+		 * 'spring.application.name'. If both are unset it defaults to 'unnamed_service'.
+		 */
+		private String serviceName;
+
+		/**
+		 * Wavefront Cluster name used in ApplicationTags.
+		 */
+		private String clusterName;
+
+		/**
+		 * Wavefront Shard name used in ApplicationTags.
+		 */
+		private String shardName;
+
+		/**
+		 * Wavefront custom tags used in ApplicationTags.
+		 */
+		private Map<String, String> customTags = new HashMap<>();
+
+		public String getServiceName() {
+			return this.serviceName;
+		}
+
+		public void setServiceName(String serviceName) {
+			this.serviceName = serviceName;
+		}
+
+		public String getName() {
+			return this.name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public String getClusterName() {
+			return this.clusterName;
+		}
+
+		public void setClusterName(String clusterName) {
+			this.clusterName = clusterName;
+		}
+
+		public String getShardName() {
+			return this.shardName;
+		}
+
+		public void setShardName(String shardName) {
+			this.shardName = shardName;
+		}
+
+		public Map<String, String> getCustomTags() {
+			return this.customTags;
+		}
+
+		public void setCustomTags(Map<String, String> customTags) {
+			this.customTags = customTags;
+		}
+
 	}
 
 	public static class Sender {
@@ -230,6 +350,21 @@ public class WavefrontProperties {
 			 */
 			private String globalPrefix;
 
+			/**
+			 * Whether to report histogram distributions aggregated into minute intervals.
+			 */
+			private boolean reportMinuteDistribution = true;
+
+			/**
+			 * Whether to report histogram distributions aggregated into hour intervals.
+			 */
+			private boolean reportHourDistribution;
+
+			/**
+			 * Whether to report histogram distributions aggregated into day intervals.
+			 */
+			private boolean reportDayDistribution;
+
 			public String getGlobalPrefix() {
 				return this.globalPrefix;
 			}
@@ -254,37 +389,57 @@ public class WavefrontProperties {
 				throw new UnsupportedOperationException("Use Sender.setBatchSize(int) instead");
 			}
 
+			public boolean isReportMinuteDistribution() {
+				return this.reportMinuteDistribution;
+			}
+
+			public void setReportMinuteDistribution(boolean reportMinuteDistribution) {
+				this.reportMinuteDistribution = reportMinuteDistribution;
+			}
+
+			public boolean isReportHourDistribution() {
+				return this.reportHourDistribution;
+			}
+
+			public void setReportHourDistribution(boolean reportHourDistribution) {
+				this.reportHourDistribution = reportHourDistribution;
+			}
+
+			public boolean isReportDayDistribution() {
+				return this.reportDayDistribution;
+			}
+
+			public void setReportDayDistribution(boolean reportDayDistribution) {
+				this.reportDayDistribution = reportDayDistribution;
+			}
+
 		}
 
 	}
 
-	public static class Tracing {
+	/**
+	 * Wavefront token type.
+	 *
+	 * @since 3.2.0
+	 */
+	public enum TokenType {
 
 		/**
-		 * Application name. Defaults to 'spring.application.name'.
+		 * No token.
 		 */
-		private String applicationName;
-
+		NO_TOKEN,
 		/**
-		 * Service name. Defaults to 'spring.application.name'.
+		 * Wavefront API token.
 		 */
-		private String serviceName;
-
-		public String getServiceName() {
-			return this.serviceName;
-		}
-
-		public void setServiceName(String serviceName) {
-			this.serviceName = serviceName;
-		}
-
-		public String getApplicationName() {
-			return this.applicationName;
-		}
-
-		public void setApplicationName(String applicationName) {
-			this.applicationName = applicationName;
-		}
+		WAVEFRONT_API_TOKEN,
+		/**
+		 * CSP API token.
+		 */
+		CSP_API_TOKEN,
+		/**
+		 * CSP client credentials.
+		 */
+		CSP_CLIENT_CREDENTIALS
 
 	}
 

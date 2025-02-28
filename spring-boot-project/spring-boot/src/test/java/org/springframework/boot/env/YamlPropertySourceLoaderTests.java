@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import org.springframework.boot.testsupport.classpath.resources.WithResource;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.ByteArrayResource;
@@ -39,7 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class YamlPropertySourceLoaderTests {
 
-	private YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
+	private final YamlPropertySourceLoader loader = new YamlPropertySourceLoader();
 
 	@Test
 	void load() throws Exception {
@@ -59,7 +60,7 @@ class YamlPropertySourceLoaderTests {
 		}
 		ByteArrayResource resource = new ByteArrayResource(yaml.toString().getBytes());
 		EnumerablePropertySource<?> source = (EnumerablePropertySource<?>) this.loader.load("resource", resource)
-				.get(0);
+			.get(0);
 		assertThat(source).isNotNull();
 		assertThat(source.getPropertyNames()).isEqualTo(StringUtils.toStringArray(expected));
 	}
@@ -86,8 +87,14 @@ class YamlPropertySourceLoaderTests {
 	}
 
 	@Test
+	@WithResource(name = "test-yaml.yml", content = """
+			a: b
+			---
+			c: d
+			e: f
+			""")
 	void loadOriginAware() throws Exception {
-		Resource resource = new ClassPathResource("test-yaml.yml", getClass());
+		Resource resource = new ClassPathResource("test-yaml.yml");
 		List<PropertySource<?>> loaded = this.loader.load("resource", resource);
 		for (PropertySource<?> source : loaded) {
 			EnumerablePropertySource<?> enumerableSource = (EnumerablePropertySource<?>) source;

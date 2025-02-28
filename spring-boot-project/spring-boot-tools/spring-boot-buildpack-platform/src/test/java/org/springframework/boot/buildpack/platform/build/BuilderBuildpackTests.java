@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import org.springframework.boot.buildpack.platform.docker.type.Layer;
 import org.springframework.boot.buildpack.platform.json.AbstractJsonTests;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -52,7 +52,7 @@ class BuilderBuildpackTests extends AbstractJsonTests {
 		BuildpackReference reference = BuildpackReference.of("urn:cnb:builder:paketo-buildpacks/spring-boot@3.5.0");
 		Buildpack buildpack = BuilderBuildpack.resolve(this.resolverContext, reference);
 		assertThat(buildpack.getCoordinates())
-				.isEqualTo(BuildpackCoordinates.of("paketo-buildpacks/spring-boot", "3.5.0"));
+			.isEqualTo(BuildpackCoordinates.of("paketo-buildpacks/spring-boot", "3.5.0"));
 		assertThatNoLayersAreAdded(buildpack);
 	}
 
@@ -61,7 +61,7 @@ class BuilderBuildpackTests extends AbstractJsonTests {
 		BuildpackReference reference = BuildpackReference.of("urn:cnb:builder:paketo-buildpacks/spring-boot");
 		Buildpack buildpack = BuilderBuildpack.resolve(this.resolverContext, reference);
 		assertThat(buildpack.getCoordinates())
-				.isEqualTo(BuildpackCoordinates.of("paketo-buildpacks/spring-boot", "3.5.0"));
+			.isEqualTo(BuildpackCoordinates.of("paketo-buildpacks/spring-boot", "3.5.0"));
 		assertThatNoLayersAreAdded(buildpack);
 	}
 
@@ -70,7 +70,7 @@ class BuilderBuildpackTests extends AbstractJsonTests {
 		BuildpackReference reference = BuildpackReference.of("paketo-buildpacks/spring-boot@3.5.0");
 		Buildpack buildpack = BuilderBuildpack.resolve(this.resolverContext, reference);
 		assertThat(buildpack.getCoordinates())
-				.isEqualTo(BuildpackCoordinates.of("paketo-buildpacks/spring-boot", "3.5.0"));
+			.isEqualTo(BuildpackCoordinates.of("paketo-buildpacks/spring-boot", "3.5.0"));
 		assertThatNoLayersAreAdded(buildpack);
 	}
 
@@ -79,24 +79,24 @@ class BuilderBuildpackTests extends AbstractJsonTests {
 		BuildpackReference reference = BuildpackReference.of("paketo-buildpacks/spring-boot");
 		Buildpack buildpack = BuilderBuildpack.resolve(this.resolverContext, reference);
 		assertThat(buildpack.getCoordinates())
-				.isEqualTo(BuildpackCoordinates.of("paketo-buildpacks/spring-boot", "3.5.0"));
+			.isEqualTo(BuildpackCoordinates.of("paketo-buildpacks/spring-boot", "3.5.0"));
 		assertThatNoLayersAreAdded(buildpack);
 	}
 
 	@Test
 	void resolveWhenFullyQualifiedBuildpackWithVersionNotInBuilderThrowsException() {
 		BuildpackReference reference = BuildpackReference.of("urn:cnb:builder:example/buildpack1@1.2.3");
-		assertThatIllegalArgumentException().isThrownBy(() -> BuilderBuildpack.resolve(this.resolverContext, reference))
-				.withMessageContaining("'urn:cnb:builder:example/buildpack1@1.2.3'")
-				.withMessageContaining("not found in builder");
+		assertThatIllegalStateException().isThrownBy(() -> BuilderBuildpack.resolve(this.resolverContext, reference))
+			.withMessageContaining("'urn:cnb:builder:example/buildpack1@1.2.3'")
+			.withMessageContaining("not found in builder");
 	}
 
 	@Test
 	void resolveWhenFullyQualifiedBuildpackWithoutVersionNotInBuilderThrowsException() {
 		BuildpackReference reference = BuildpackReference.of("urn:cnb:builder:example/buildpack1");
-		assertThatIllegalArgumentException().isThrownBy(() -> BuilderBuildpack.resolve(this.resolverContext, reference))
-				.withMessageContaining("'urn:cnb:builder:example/buildpack1'")
-				.withMessageContaining("not found in builder");
+		assertThatIllegalStateException().isThrownBy(() -> BuilderBuildpack.resolve(this.resolverContext, reference))
+			.withMessageContaining("'urn:cnb:builder:example/buildpack1'")
+			.withMessageContaining("not found in builder");
 	}
 
 	@Test

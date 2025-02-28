@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,9 @@ package org.springframework.boot.autoconfigure.sql.init;
 
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.NoneNestedConditions;
-import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
-import org.springframework.boot.autoconfigure.r2dbc.R2dbcAutoConfiguration;
 import org.springframework.boot.autoconfigure.sql.init.SqlInitializationAutoConfiguration.SqlInitializationModeCondition;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.sql.init.dependency.DatabaseInitializationDependencyConfigurer;
@@ -34,11 +33,11 @@ import org.springframework.context.annotation.Import;
  * @author Andy Wilkinson
  * @since 2.5.0
  */
-@AutoConfiguration(after = { R2dbcAutoConfiguration.class, DataSourceAutoConfiguration.class })
+@AutoConfiguration
 @EnableConfigurationProperties(SqlInitializationProperties.class)
 @Import({ DatabaseInitializationDependencyConfigurer.class, R2dbcInitializationConfiguration.class,
 		DataSourceInitializationConfiguration.class })
-@ConditionalOnProperty(prefix = "spring.sql.init", name = "enabled", matchIfMissing = true)
+@ConditionalOnBooleanProperty(name = "spring.sql.init.enabled", matchIfMissing = true)
 @Conditional(SqlInitializationModeCondition.class)
 public class SqlInitializationAutoConfiguration {
 
@@ -48,7 +47,7 @@ public class SqlInitializationAutoConfiguration {
 			super(ConfigurationPhase.PARSE_CONFIGURATION);
 		}
 
-		@ConditionalOnProperty(prefix = "spring.sql.init", name = "mode", havingValue = "never")
+		@ConditionalOnProperty(name = "spring.sql.init.mode", havingValue = "never")
 		static class ModeIsNever {
 
 		}

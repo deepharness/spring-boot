@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ import org.springframework.util.Assert;
  * {@link CacheManager} if necessary when caching is enabled via
  * {@link EnableCaching @EnableCaching}.
  * <p>
- * Cache store can be auto-detected or specified explicitly via configuration.
+ * Cache store can be auto-detected or specified explicitly through configuration.
  *
  * @author Stephane Nicoll
  * @since 1.3.0
@@ -102,7 +102,7 @@ public class CacheAutoConfiguration {
 
 		@Override
 		public void afterPropertiesSet() {
-			Assert.notNull(this.cacheManager.getIfAvailable(),
+			Assert.state(this.cacheManager.getIfAvailable() != null,
 					() -> "No cache manager could be auto-configured, check your configuration (caching type is '"
 							+ this.cacheProperties.getType() + "')");
 		}

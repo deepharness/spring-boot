@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,8 +17,7 @@
 package org.springframework.boot.autoconfigure.security;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -37,7 +36,7 @@ import org.springframework.util.StringUtils;
  * @author Madhura Bhave
  * @since 1.0.0
  */
-@ConfigurationProperties(prefix = "spring.security")
+@ConfigurationProperties("spring.security")
 public class SecurityProperties {
 
 	/**
@@ -76,15 +75,14 @@ public class SecurityProperties {
 	public static class Filter {
 
 		/**
-		 * Security filter chain order.
+		 * Security filter chain order for Servlet-based web applications.
 		 */
 		private int order = DEFAULT_FILTER_ORDER;
 
 		/**
-		 * Security filter chain dispatcher types.
+		 * Security filter chain dispatcher types for Servlet-based web applications.
 		 */
-		private Set<DispatcherType> dispatcherTypes = new HashSet<>(Arrays.asList(DispatcherType.ASYNC,
-				DispatcherType.ERROR, DispatcherType.REQUEST, DispatcherType.FORWARD, DispatcherType.INCLUDE));
+		private Set<DispatcherType> dispatcherTypes = EnumSet.allOf(DispatcherType.class);
 
 		public int getOrder() {
 			return this.order;

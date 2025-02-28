@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,13 +25,18 @@ import org.jooq.DSLContext;
 import org.jooq.ExecuteListener;
 import org.jooq.ExecuteListenerProvider;
 import org.jooq.SQLDialect;
+import org.jooq.TransactionContext;
+import org.jooq.TransactionProvider;
 import org.jooq.TransactionalRunnable;
+import org.jooq.conf.Settings;
 import org.jooq.impl.DataSourceConnectionProvider;
+import org.jooq.impl.DefaultDSLContext;
 import org.jooq.impl.DefaultExecuteListenerProvider;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.jdbc.DataSourceBuilder;
+import org.springframework.boot.test.context.FilteredClassLoader;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -53,12 +58,14 @@ import static org.mockito.Mockito.mock;
  * @author Andy Wilkinson
  * @author Stephane Nicoll
  * @author Dmytro Nosan
+ * @author Dennis Melzer
+ * @author Moritz Halbritter
  */
 class JooqAutoConfigurationTests {
 
 	private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-			.withConfiguration(AutoConfigurations.of(JooqAutoConfiguration.class))
-			.withPropertyValues("spring.datasource.name:jooqtest");
+		.withConfiguration(AutoConfigurations.of(JooqAutoConfiguration.class))
+		.withPropertyValues("spring.datasource.name:jooqtest");
 
 	@Test
 	void noDataSource() {
@@ -76,8 +83,8 @@ class JooqAutoConfigurationTests {
 			dsl.transaction(new ExecuteSql(dsl, "insert into jooqtest (name) values ('foo');"));
 			dsl.transaction(new AssertFetch(dsl, "select count(*) as total from jooqtest;", "1"));
 			assertThatExceptionOfType(DataIntegrityViolationException.class)
-					.isThrownBy(() -> dsl.transaction(new ExecuteSql(dsl, "insert into jooqtest (name) values ('bar');",
-							"insert into jooqtest (name) values ('foo');")));
+				.isThrownBy(() -> dsl.transaction(new ExecuteSql(dsl, "insert into jooqtest (name) values ('bar');",
+						"insert into jooqtest (name) values ('foo');")));
 			dsl.transaction(new AssertFetch(dsl, "select count(*) as total from jooqtest;", "2"));
 		});
 	}
@@ -85,19 +92,19 @@ class JooqAutoConfigurationTests {
 	@Test
 	void jooqWithTx() {
 		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class, TxManagerConfiguration.class)
-				.run((context) -> {
-					assertThat(context).hasSingleBean(PlatformTransactionManager.class);
-					DSLContext dsl = context.getBean(DSLContext.class);
-					assertThat(dsl.configuration().dialect()).isEqualTo(SQLDialect.HSQLDB);
-					dsl.execute("create table jooqtest_tx (name varchar(255) primary key);");
-					dsl.transaction(new AssertFetch(dsl, "select count(*) as total from jooqtest_tx;", "0"));
-					dsl.transaction(new ExecuteSql(dsl, "insert into jooqtest_tx (name) values ('foo');"));
-					dsl.transaction(new AssertFetch(dsl, "select count(*) as total from jooqtest_tx;", "1"));
-					assertThatExceptionOfType(DataIntegrityViolationException.class).isThrownBy(
-							() -> dsl.transaction(new ExecuteSql(dsl, "insert into jooqtest (name) values ('bar');",
-									"insert into jooqtest (name) values ('foo');")));
-					dsl.transaction(new AssertFetch(dsl, "select count(*) as total from jooqtest_tx;", "1"));
-				});
+			.run((context) -> {
+				assertThat(context).hasSingleBean(PlatformTransactionManager.class);
+				DSLContext dsl = context.getBean(DSLContext.class);
+				assertThat(dsl.configuration().dialect()).isEqualTo(SQLDialect.HSQLDB);
+				dsl.execute("create table jooqtest_tx (name varchar(255) primary key);");
+				dsl.transaction(new AssertFetch(dsl, "select count(*) as total from jooqtest_tx;", "0"));
+				dsl.transaction(new ExecuteSql(dsl, "insert into jooqtest_tx (name) values ('foo');"));
+				dsl.transaction(new AssertFetch(dsl, "select count(*) as total from jooqtest_tx;", "1"));
+				assertThatExceptionOfType(DataIntegrityViolationException.class)
+					.isThrownBy(() -> dsl.transaction(new ExecuteSql(dsl, "insert into jooqtest (name) values ('bar');",
+							"insert into jooqtest (name) values ('foo');")));
+				dsl.transaction(new AssertFetch(dsl, "select count(*) as total from jooqtest_tx;", "1"));
+			});
 	}
 
 	@Test
@@ -112,6 +119,17 @@ class JooqAutoConfigurationTests {
 	}
 
 	@Test
+	void jooqWithDefaultTransactionProvider() {
+		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class, TxManagerConfiguration.class)
+			.run((context) -> {
+				DSLContext dsl = context.getBean(DSLContext.class);
+				TransactionProvider expectedTransactionProvider = context.getBean(TransactionProvider.class);
+				TransactionProvider transactionProvider = dsl.configuration().transactionProvider();
+				assertThat(transactionProvider).isSameAs(expectedTransactionProvider);
+			});
+	}
+
+	@Test
 	void jooqWithDefaultExecuteListenerProvider() {
 		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class).run((context) -> {
 			DSLContext dsl = context.getBean(DSLContext.class);
@@ -122,13 +140,13 @@ class JooqAutoConfigurationTests {
 	@Test
 	void jooqWithSeveralExecuteListenerProviders() {
 		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class, TestExecuteListenerProvider.class)
-				.run((context) -> {
-					DSLContext dsl = context.getBean(DSLContext.class);
-					ExecuteListenerProvider[] executeListenerProviders = dsl.configuration().executeListenerProviders();
-					assertThat(executeListenerProviders).hasSize(2);
-					assertThat(executeListenerProviders[0]).isInstanceOf(DefaultExecuteListenerProvider.class);
-					assertThat(executeListenerProviders[1]).isInstanceOf(TestExecuteListenerProvider.class);
-				});
+			.run((context) -> {
+				DSLContext dsl = context.getBean(DSLContext.class);
+				ExecuteListenerProvider[] executeListenerProviders = dsl.configuration().executeListenerProviders();
+				assertThat(executeListenerProviders).hasSize(2);
+				assertThat(executeListenerProviders[0]).isInstanceOf(DefaultExecuteListenerProvider.class);
+				assertThat(executeListenerProviders[1]).isInstanceOf(TestExecuteListenerProvider.class);
+			});
 	}
 
 	@Test
@@ -136,23 +154,105 @@ class JooqAutoConfigurationTests {
 		ConverterProvider converterProvider = mock(ConverterProvider.class);
 		CharsetProvider charsetProvider = mock(CharsetProvider.class);
 		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class)
-				.withBean("configurationCustomizer1", DefaultConfigurationCustomizer.class,
-						() -> (configuration) -> configuration.set(converterProvider))
-				.withBean("configurationCustomizer2", DefaultConfigurationCustomizer.class,
-						() -> (configuration) -> configuration.set(charsetProvider))
-				.run((context) -> {
-					DSLContext dsl = context.getBean(DSLContext.class);
-					assertThat(dsl.configuration().converterProvider()).isSameAs(converterProvider);
-					assertThat(dsl.configuration().charsetProvider()).isSameAs(charsetProvider);
-				});
+			.withBean("configurationCustomizer1", DefaultConfigurationCustomizer.class,
+					() -> (configuration) -> configuration.set(converterProvider))
+			.withBean("configurationCustomizer2", DefaultConfigurationCustomizer.class,
+					() -> (configuration) -> configuration.set(charsetProvider))
+			.run((context) -> {
+				DSLContext dsl = context.getBean(DSLContext.class);
+				assertThat(dsl.configuration().converterProvider()).isSameAs(converterProvider);
+				assertThat(dsl.configuration().charsetProvider()).isSameAs(charsetProvider);
+			});
 	}
 
 	@Test
 	void relaxedBindingOfSqlDialect() {
 		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class)
-				.withPropertyValues("spring.jooq.sql-dialect:PoSTGrES")
-				.run((context) -> assertThat(context.getBean(org.jooq.Configuration.class).dialect())
-						.isEqualTo(SQLDialect.POSTGRES));
+			.withPropertyValues("spring.jooq.sql-dialect:PoSTGrES")
+			.run((context) -> assertThat(context.getBean(org.jooq.Configuration.class).dialect())
+				.isEqualTo(SQLDialect.POSTGRES));
+	}
+
+	@Test
+	void transactionProviderBacksOffOnExistingTransactionProvider() {
+		this.contextRunner
+			.withUserConfiguration(JooqDataSourceConfiguration.class, CustomTransactionProviderConfiguration.class)
+			.run((context) -> {
+				TransactionProvider transactionProvider = context.getBean(TransactionProvider.class);
+				assertThat(transactionProvider).isInstanceOf(CustomTransactionProvider.class);
+				DSLContext dsl = context.getBean(DSLContext.class);
+				assertThat(dsl.configuration().transactionProvider()).isSameAs(transactionProvider);
+			});
+	}
+
+	@Test
+	void jooqExceptionTranslatorProviderFromConfigurationCustomizerOverridesJooqExceptionTranslatorBean() {
+		this.contextRunner
+			.withUserConfiguration(JooqDataSourceConfiguration.class, CustomJooqExceptionTranslatorConfiguration.class)
+			.run((context) -> {
+				assertThat(context.getBean(ExceptionTranslatorExecuteListener.class))
+					.isInstanceOf(CustomJooqExceptionTranslator.class);
+				assertThat(context.getBean(DefaultExecuteListenerProvider.class).provide())
+					.isInstanceOf(CustomJooqExceptionTranslator.class);
+			});
+	}
+
+	@Test
+	void jooqWithDefaultJooqExceptionTranslator() {
+		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class).run((context) -> {
+			ExceptionTranslatorExecuteListener translator = context.getBean(ExceptionTranslatorExecuteListener.class);
+			assertThat(translator).isInstanceOf(DefaultExceptionTranslatorExecuteListener.class);
+		});
+	}
+
+	@Test
+	void transactionProviderFromConfigurationCustomizerOverridesTransactionProviderBean() {
+		this.contextRunner
+			.withUserConfiguration(JooqDataSourceConfiguration.class, TxManagerConfiguration.class,
+					CustomTransactionProviderFromCustomizerConfiguration.class)
+			.run((context) -> {
+				TransactionProvider transactionProvider = context.getBean(TransactionProvider.class);
+				assertThat(transactionProvider).isInstanceOf(SpringTransactionProvider.class);
+				DSLContext dsl = context.getBean(DSLContext.class);
+				assertThat(dsl.configuration().transactionProvider()).isInstanceOf(CustomTransactionProvider.class);
+			});
+	}
+
+	@Test
+	void autoConfiguredJooqConfigurationCanBeUsedToCreateCustomDslContext() {
+		this.contextRunner.withUserConfiguration(CustomDslContextConfiguration.class, JooqDataSourceConfiguration.class)
+			.run((context) -> assertThat(context).hasSingleBean(DSLContext.class).hasBean("customDslContext"));
+	}
+
+	@Test
+	void shouldLoadSettingsFromConfigPropertyThroughJaxb() {
+		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class)
+			.withPropertyValues("spring.jooq.config=classpath:org/springframework/boot/autoconfigure/jooq/settings.xml")
+			.run((context) -> {
+				assertThat(context).hasSingleBean(Settings.class);
+				Settings settings = context.getBean(Settings.class);
+				assertThat(settings.getBatchSize()).isEqualTo(100);
+			});
+	}
+
+	@Test
+	void shouldNotProvideSettingsIfJaxbIsMissing() {
+		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class)
+			.withClassLoader(new FilteredClassLoader("jakarta.xml.bind"))
+			.withPropertyValues("spring.jooq.config=classpath:org/springframework/boot/autoconfigure/jooq/settings.xml")
+			.run((context) -> assertThat(context).hasFailed()
+				.getFailure()
+				.hasRootCauseInstanceOf(JaxbNotAvailableException.class));
+	}
+
+	@Test
+	void shouldFailWithSensibleErrorMessageIfConfigIsNotFound() {
+		this.contextRunner.withUserConfiguration(JooqDataSourceConfiguration.class)
+			.withPropertyValues("spring.jooq.config=classpath:does-not-exist.xml")
+			.run((context) -> assertThat(context).hasFailed()
+				.getFailure()
+				.hasMessageContaining("spring.jooq.config")
+				.hasMessageContaining("does-not-exist.xml"));
 	}
 
 	static class AssertFetch implements TransactionalRunnable {
@@ -171,7 +271,7 @@ class JooqAutoConfigurationTests {
 
 		@Override
 		public void run(org.jooq.Configuration configuration) {
-			assertThat(this.dsl.fetch(this.sql).getValue(0, 0).toString()).isEqualTo(this.expected);
+			assertThat(this.dsl.fetch(this.sql).getValue(0, 0)).hasToString(this.expected);
 		}
 
 	}
@@ -207,11 +307,51 @@ class JooqAutoConfigurationTests {
 	}
 
 	@Configuration(proxyBeanMethods = false)
+	static class CustomTransactionProviderConfiguration {
+
+		@Bean
+		TransactionProvider transactionProvider() {
+			return new CustomTransactionProvider();
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class CustomJooqExceptionTranslatorConfiguration {
+
+		@Bean
+		ExceptionTranslatorExecuteListener jooqExceptionTranslator() {
+			return new CustomJooqExceptionTranslator();
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class CustomTransactionProviderFromCustomizerConfiguration {
+
+		@Bean
+		DefaultConfigurationCustomizer transactionProviderCustomizer() {
+			return (configuration) -> configuration.setTransactionProvider(new CustomTransactionProvider());
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
 	static class TxManagerConfiguration {
 
 		@Bean
 		PlatformTransactionManager transactionManager(DataSource dataSource) {
 			return new DataSourceTransactionManager(dataSource);
+		}
+
+	}
+
+	@Configuration(proxyBeanMethods = false)
+	static class CustomDslContextConfiguration {
+
+		@Bean
+		DSLContext customDslContext(org.jooq.Configuration configuration) {
+			return new DefaultDSLContext(configuration);
 		}
 
 	}
@@ -223,6 +363,29 @@ class JooqAutoConfigurationTests {
 		public ExecuteListener provide() {
 			return null;
 		}
+
+	}
+
+	static class CustomTransactionProvider implements TransactionProvider {
+
+		@Override
+		public void begin(TransactionContext ctx) {
+
+		}
+
+		@Override
+		public void commit(TransactionContext ctx) {
+
+		}
+
+		@Override
+		public void rollback(TransactionContext ctx) {
+
+		}
+
+	}
+
+	static class CustomJooqExceptionTranslator implements ExceptionTranslatorExecuteListener {
 
 	}
 

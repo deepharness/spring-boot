@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,6 +15,12 @@
  */
 
 package org.springframework.boot.actuate.autoconfigure.endpoint.jackson;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -34,8 +40,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class JacksonEndpointAutoConfigurationTests {
 
-	private ApplicationContextRunner runner = new ApplicationContextRunner()
-			.withConfiguration(AutoConfigurations.of(JacksonEndpointAutoConfiguration.class));
+	private final ApplicationContextRunner runner = new ApplicationContextRunner()
+		.withConfiguration(AutoConfigurations.of(JacksonEndpointAutoConfiguration.class));
 
 	@Test
 	void endpointObjectMapperWhenNoProperty() {
@@ -45,13 +51,44 @@ class JacksonEndpointAutoConfigurationTests {
 	@Test
 	void endpointObjectMapperWhenPropertyTrue() {
 		this.runner.withPropertyValues("management.endpoints.jackson.isolated-object-mapper=true")
-				.run((context) -> assertThat(context).hasSingleBean(EndpointObjectMapper.class));
+			.run((context) -> assertThat(context).hasSingleBean(EndpointObjectMapper.class));
 	}
 
 	@Test
 	void endpointObjectMapperWhenPropertyFalse() {
 		this.runner.withPropertyValues("management.endpoints.jackson.isolated-object-mapper=false")
-				.run((context) -> assertThat(context).doesNotHaveBean(EndpointObjectMapper.class));
+			.run((context) -> assertThat(context).doesNotHaveBean(EndpointObjectMapper.class));
+	}
+
+	@Test
+	void endpointObjectMapperDoesNotSerializeDatesAsTimestamps() {
+		this.runner.run((context) -> {
+			ObjectMapper objectMapper = context.getBean(EndpointObjectMapper.class).get();
+			Instant now = Instant.now();
+			String json = objectMapper.writeValueAsString(Map.of("timestamp", now));
+			assertThat(json).contains(DateTimeFormatter.ISO_INSTANT.format(now));
+		});
+	}
+
+	@Test
+	void endpointObjectMapperDoesNotSerializeDurationsAsTimestamps() {
+		this.runner.run((context) -> {
+			ObjectMapper objectMapper = context.getBean(EndpointObjectMapper.class).get();
+			Duration duration = Duration.ofSeconds(42);
+			String json = objectMapper.writeValueAsString(Map.of("duration", duration));
+			assertThat(json).contains(duration.toString());
+		});
+	}
+
+	@Test
+	void endpointObjectMapperDoesNotSerializeNullValues() {
+		this.runner.run((context) -> {
+			ObjectMapper objectMapper = context.getBean(EndpointObjectMapper.class).get();
+			HashMap<String, String> map = new HashMap<>();
+			map.put("key", null);
+			String json = objectMapper.writeValueAsString(map);
+			assertThat(json).isEqualTo("{}");
+		});
 	}
 
 	@Configuration(proxyBeanMethods = false)

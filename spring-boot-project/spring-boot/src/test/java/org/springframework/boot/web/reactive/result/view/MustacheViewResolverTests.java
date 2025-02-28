@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import java.time.Duration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.boot.testsupport.classpath.resources.WithResource;
 import org.springframework.context.support.GenericApplicationContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,16 +33,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class MustacheViewResolverTests {
 
-	private final String prefix = "classpath:/" + getClass().getPackage().getName().replace(".", "/") + "/";
-
-	private MustacheViewResolver resolver = new MustacheViewResolver();
+	private final MustacheViewResolver resolver = new MustacheViewResolver();
 
 	@BeforeEach
 	void init() {
 		GenericApplicationContext applicationContext = new GenericApplicationContext();
 		applicationContext.refresh();
 		this.resolver.setApplicationContext(applicationContext);
-		this.resolver.setPrefix(this.prefix);
+		this.resolver.setPrefix("classpath:");
 		this.resolver.setSuffix(".html");
 	}
 
@@ -51,6 +50,7 @@ class MustacheViewResolverTests {
 	}
 
 	@Test
+	@WithResource(name = "template.html", content = "Hello {{World}}")
 	void resolveExisting() {
 		assertThat(this.resolver.resolveViewName("template", null).block(Duration.ofSeconds(30))).isNotNull();
 	}

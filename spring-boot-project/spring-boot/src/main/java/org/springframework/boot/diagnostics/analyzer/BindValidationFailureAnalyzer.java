@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,9 +47,9 @@ class BindValidationFailureAnalyzer extends AbstractFailureAnalyzer<Throwable> {
 	private ExceptionDetails getBindValidationExceptionDetails(Throwable rootFailure) {
 		BindValidationException validationException = findCause(rootFailure, BindValidationException.class);
 		if (validationException != null) {
-			BindException target = findCause(rootFailure, BindException.class);
+			BindException bindException = findCause(rootFailure, BindException.class);
 			List<ObjectError> errors = validationException.getValidationErrors().getAllErrors();
-			return new ExceptionDetails(errors, target, validationException);
+			return new ExceptionDetails(errors, bindException.getTarget().getType(), validationException);
 		}
 		org.springframework.validation.BindException bindException = findCause(rootFailure,
 				org.springframework.validation.BindException.class);
@@ -87,11 +87,11 @@ class BindValidationFailureAnalyzer extends AbstractFailureAnalyzer<Throwable> {
 
 	private static class ExceptionDetails {
 
-		private List<ObjectError> errors;
+		private final List<ObjectError> errors;
 
-		private Object target;
+		private final Object target;
 
-		private Throwable cause;
+		private final Throwable cause;
 
 		ExceptionDetails(List<ObjectError> errors, Object target, Throwable cause) {
 			this.errors = errors;

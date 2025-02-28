@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2019 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import com.samskivert.mustache.Mustache;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.boot.testsupport.classpath.resources.WithResource;
 import org.springframework.boot.web.servlet.context.AnnotationConfigServletWebApplicationContext;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -37,14 +38,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class MustacheViewTests {
 
-	private final String templateUrl = "classpath:/" + getClass().getPackage().getName().replace(".", "/")
-			+ "/template.html";
+	private final MockHttpServletRequest request = new MockHttpServletRequest();
 
-	private MockHttpServletRequest request = new MockHttpServletRequest();
+	private final MockHttpServletResponse response = new MockHttpServletResponse();
 
-	private MockHttpServletResponse response = new MockHttpServletResponse();
-
-	private AnnotationConfigServletWebApplicationContext context = new AnnotationConfigServletWebApplicationContext();
+	private final AnnotationConfigServletWebApplicationContext context = new AnnotationConfigServletWebApplicationContext();
 
 	@BeforeEach
 	void init() {
@@ -55,10 +53,11 @@ class MustacheViewTests {
 	}
 
 	@Test
+	@WithResource(name = "template.html", content = "Hello {{World}}")
 	void viewResolvesHandlebars() throws Exception {
 		MustacheView view = new MustacheView();
 		view.setCompiler(Mustache.compiler());
-		view.setUrl(this.templateUrl);
+		view.setUrl("classpath:template.html");
 		view.setApplicationContext(this.context);
 		view.render(Collections.singletonMap("World", "Spring"), this.request, this.response);
 		assertThat(this.response.getContentAsString().trim()).isEqualTo("Hello Spring");

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,8 @@ package org.springframework.boot.actuate.autoconfigure.observation.web.client;
 import io.micrometer.observation.ObservationRegistry;
 
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.actuate.autoconfigure.metrics.MetricsProperties;
 import org.springframework.boot.actuate.autoconfigure.observation.ObservationProperties;
 import org.springframework.boot.actuate.metrics.web.client.ObservationRestTemplateCustomizer;
-import org.springframework.boot.actuate.metrics.web.client.RestTemplateExchangeTagsProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -40,20 +38,15 @@ import org.springframework.web.client.RestTemplate;
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(RestTemplate.class)
 @ConditionalOnBean(RestTemplateBuilder.class)
-@SuppressWarnings("removal")
 class RestTemplateObservationConfiguration {
 
 	@Bean
 	ObservationRestTemplateCustomizer observationRestTemplateCustomizer(ObservationRegistry observationRegistry,
-			ObservationProperties observationProperties, MetricsProperties metricsProperties,
-			ObjectProvider<RestTemplateExchangeTagsProvider> optionalTagsProvider) {
-		String metricName = metricsProperties.getWeb().getClient().getRequest().getMetricName();
-		String observationName = observationProperties.getHttp().getClient().getRequests().getName();
-		String name = (observationName != null) ? observationName : metricName;
-		RestTemplateExchangeTagsProvider tagsProvider = optionalTagsProvider.getIfAvailable();
-		ClientRequestObservationConvention observationConvention = (tagsProvider != null)
-				? new ClientHttpObservationConventionAdapter(name, tagsProvider)
-				: new DefaultClientRequestObservationConvention(name);
+			ObjectProvider<ClientRequestObservationConvention> customConvention,
+			ObservationProperties observationProperties) {
+		String name = observationProperties.getHttp().getClient().getRequests().getName();
+		ClientRequestObservationConvention observationConvention = customConvention
+			.getIfAvailable(() -> new DefaultClientRequestObservationConvention(name));
 		return new ObservationRestTemplateCustomizer(observationRegistry, observationConvention);
 	}
 

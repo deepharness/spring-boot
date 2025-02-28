@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * @author Safeer Ansari
  * @since 1.0.0
  */
-@ConfigurationProperties(prefix = "spring.data.mongodb")
+@ConfigurationProperties("spring.data.mongodb")
 public class MongoProperties {
 
 	/**
@@ -52,29 +52,34 @@ public class MongoProperties {
 	public static final String DEFAULT_URI = "mongodb://localhost/test";
 
 	/**
-	 * Mongo server host. Cannot be set with URI.
+	 * Protocol to be used for the MongoDB connection. Ignored if 'uri' is set.
+	 */
+	private String protocol = "mongodb";
+
+	/**
+	 * Mongo server host. Ignored if 'uri' is set.
 	 */
 	private String host;
 
 	/**
-	 * Mongo server port. Cannot be set with URI.
+	 * Mongo server port. Ignored if 'uri' is set.
 	 */
 	private Integer port = null;
 
 	/**
-	 * Additional server hosts. Cannot be set with URI or if 'host' is not specified.
-	 * Additional hosts will use the default mongo port of 27017, if you want to use a
+	 * Additional server hosts. Ignored if 'uri' is set or if 'host' is omitted.
+	 * Additional hosts will use the default mongo port of 27017. If you want to use a
 	 * different port you can use the "host:port" syntax.
 	 */
 	private List<String> additionalHosts;
 
 	/**
-	 * Mongo database URI. Overrides host, port, username, password, and database.
+	 * Mongo database URI. Overrides host, port, username, and password.
 	 */
 	private String uri;
 
 	/**
-	 * Database name.
+	 * Database name. Overrides database in URI.
 	 */
 	private String database;
 
@@ -86,17 +91,17 @@ public class MongoProperties {
 	private final Gridfs gridfs = new Gridfs();
 
 	/**
-	 * Login user of the mongo server. Cannot be set with URI.
+	 * Login user of the mongo server. Ignored if 'uri' is set.
 	 */
 	private String username;
 
 	/**
-	 * Login password of the mongo server. Cannot be set with URI.
+	 * Login password of the mongo server. Ignored if 'uri' is set.
 	 */
 	private char[] password;
 
 	/**
-	 * Required replica set name for the cluster. Cannot be set with URI.
+	 * Required replica set name for the cluster. Ignored if 'uri' is set.
 	 */
 	private String replicaSetName;
 
@@ -110,10 +115,20 @@ public class MongoProperties {
 	 */
 	private UuidRepresentation uuidRepresentation = UuidRepresentation.JAVA_LEGACY;
 
+	private final Ssl ssl = new Ssl();
+
 	/**
 	 * Whether to enable auto-index creation.
 	 */
 	private Boolean autoIndexCreation;
+
+	public void setProtocol(String protocol) {
+		this.protocol = protocol;
+	}
+
+	public String getProtocol() {
+		return this.protocol;
+	}
 
 	public String getHost() {
 		return this.host;
@@ -226,6 +241,10 @@ public class MongoProperties {
 		this.additionalHosts = additionalHosts;
 	}
 
+	public Ssl getSsl() {
+		return this.ssl;
+	}
+
 	public static class Gridfs {
 
 		/**
@@ -252,6 +271,37 @@ public class MongoProperties {
 
 		public void setBucket(String bucket) {
 			this.bucket = bucket;
+		}
+
+	}
+
+	public static class Ssl {
+
+		/**
+		 * Whether to enable SSL support. Enabled automatically if "bundle" is provided
+		 * unless specified otherwise.
+		 */
+		private Boolean enabled;
+
+		/**
+		 * SSL bundle name.
+		 */
+		private String bundle;
+
+		public boolean isEnabled() {
+			return (this.enabled != null) ? this.enabled : this.bundle != null;
+		}
+
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
+		}
+
+		public String getBundle() {
+			return this.bundle;
+		}
+
+		public void setBundle(String bundle) {
+			this.bundle = bundle;
 		}
 
 	}

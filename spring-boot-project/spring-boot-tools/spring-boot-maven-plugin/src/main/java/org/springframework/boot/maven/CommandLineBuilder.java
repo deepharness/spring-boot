@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package org.springframework.boot.maven;
 
-import java.io.File;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -57,8 +55,10 @@ final class CommandLineBuilder {
 
 	CommandLineBuilder withSystemProperties(Map<String, String> systemProperties) {
 		if (systemProperties != null) {
-			systemProperties.entrySet().stream().map((e) -> SystemPropertyFormatter.format(e.getKey(), e.getValue()))
-					.forEach(this.options::add);
+			systemProperties.entrySet()
+				.stream()
+				.map((e) -> SystemPropertyFormatter.format(e.getKey(), e.getValue()))
+				.forEach(this.options::add);
 		}
 		return this;
 	}
@@ -80,10 +80,7 @@ final class CommandLineBuilder {
 		if (!this.options.isEmpty()) {
 			commandLine.addAll(this.options);
 		}
-		if (!this.classpathElements.isEmpty()) {
-			commandLine.add("-cp");
-			commandLine.add(ClasspathBuilder.build(this.classpathElements));
-		}
+		commandLine.addAll(ClassPath.of(this.classpathElements).args(true));
 		commandLine.add(this.mainClass);
 		if (!this.arguments.isEmpty()) {
 			commandLine.addAll(this.arguments);
@@ -91,34 +88,10 @@ final class CommandLineBuilder {
 		return commandLine;
 	}
 
-	static class ClasspathBuilder {
-
-		static String build(List<URL> classpathElements) {
-			StringBuilder classpath = new StringBuilder();
-			for (URL element : classpathElements) {
-				if (classpath.length() > 0) {
-					classpath.append(File.pathSeparator);
-				}
-				classpath.append(toFile(element));
-			}
-			return classpath.toString();
-		}
-
-		private static File toFile(URL element) {
-			try {
-				return new File(element.toURI());
-			}
-			catch (URISyntaxException ex) {
-				throw new IllegalArgumentException(ex);
-			}
-		}
-
-	}
-
 	/**
 	 * Format System properties.
 	 */
-	private static class SystemPropertyFormatter {
+	private static final class SystemPropertyFormatter {
 
 		static String format(String key, String value) {
 			if (key == null) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,9 @@
 
 package org.springframework.boot.web.client;
 
+import org.apache.hc.client5.http.HttpRoute;
 import org.apache.hc.client5.http.classic.HttpClient;
+import org.apache.hc.core5.function.Resolver;
 import org.apache.hc.core5.http.io.SocketConfig;
 
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
@@ -28,6 +30,7 @@ import org.springframework.test.util.ReflectionTestUtils;
  *
  * @author Andy Wilkinson
  */
+@SuppressWarnings("removal")
 class ClientHttpRequestFactoriesHttpComponentsTests
 		extends AbstractClientHttpRequestFactoriesTests<HttpComponentsClientHttpRequestFactory> {
 
@@ -37,16 +40,28 @@ class ClientHttpRequestFactoriesHttpComponentsTests
 
 	@Override
 	protected long connectTimeout(HttpComponentsClientHttpRequestFactory requestFactory) {
-		return (int) ReflectionTestUtils.getField(requestFactory, "connectTimeout");
+		return (long) ReflectionTestUtils.getField(requestFactory, "connectTimeout");
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	protected long readTimeout(HttpComponentsClientHttpRequestFactory requestFactory) {
 		HttpClient httpClient = requestFactory.getHttpClient();
 		Object connectionManager = ReflectionTestUtils.getField(httpClient, "connManager");
-		SocketConfig socketConfig = (SocketConfig) ReflectionTestUtils.getField(connectionManager,
-				"defaultSocketConfig");
+		SocketConfig socketConfig = ((Resolver<HttpRoute, SocketConfig>) ReflectionTestUtils.getField(connectionManager,
+				"socketConfigResolver"))
+			.resolve(null);
 		return socketConfig.getSoTimeout().toMilliseconds();
+	}
+
+	@Override
+	protected boolean supportsSettingConnectTimeout() {
+		return true;
+	}
+
+	@Override
+	protected boolean supportsSettingReadTimeout() {
+		return false;
 	}
 
 }

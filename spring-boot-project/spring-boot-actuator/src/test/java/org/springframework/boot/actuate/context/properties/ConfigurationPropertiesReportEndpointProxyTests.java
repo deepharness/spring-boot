@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,23 +60,37 @@ class ConfigurationPropertiesReportEndpointProxyTests {
 				SqlExecutor.class);
 		contextRunner.run((context) -> {
 			ConfigurationPropertiesDescriptor applicationProperties = context
-					.getBean(ConfigurationPropertiesReportEndpoint.class).configurationProperties();
-			assertThat(applicationProperties.getContexts().get(context.getId()).getBeans().values().stream()
-					.map(ConfigurationPropertiesBeanDescriptor::getPrefix).filter("executor.sql"::equals).findFirst())
-							.isNotEmpty();
+				.getBean(ConfigurationPropertiesReportEndpoint.class)
+				.configurationProperties();
+			assertThat(applicationProperties.getContexts()
+				.get(context.getId())
+				.getBeans()
+				.values()
+				.stream()
+				.map(ConfigurationPropertiesBeanDescriptor::getPrefix)
+				.filter("executor.sql"::equals)
+				.findFirst()).isNotEmpty();
 		});
 	}
 
 	@Test
 	void proxiedConstructorBoundPropertiesShouldBeAvailableInReport() {
 		ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-				.withUserConfiguration(ValidatedConfiguration.class).withPropertyValues("validated.name=baz");
+			.withUserConfiguration(ValidatedConfiguration.class)
+			.withPropertyValues("validated.name=baz");
 		contextRunner.run((context) -> {
 			ConfigurationPropertiesDescriptor applicationProperties = context
-					.getBean(ConfigurationPropertiesReportEndpoint.class).configurationProperties();
-			Map<String, Object> properties = applicationProperties.getContexts().get(context.getId()).getBeans()
-					.values().stream().map(ConfigurationPropertiesBeanDescriptor::getProperties).findFirst().get();
-			assertThat(properties.get("name")).isEqualTo("baz");
+				.getBean(ConfigurationPropertiesReportEndpoint.class)
+				.configurationProperties();
+			Map<String, Object> properties = applicationProperties.getContexts()
+				.get(context.getId())
+				.getBeans()
+				.values()
+				.stream()
+				.map(ConfigurationPropertiesBeanDescriptor::getProperties)
+				.findFirst()
+				.get();
+			assertThat(properties).containsEntry("name", "baz");
 		});
 	}
 
@@ -96,7 +110,7 @@ class ConfigurationPropertiesReportEndpointProxyTests {
 		}
 
 		@Bean
-		MethodValidationPostProcessor testPostProcessor() {
+		static MethodValidationPostProcessor testPostProcessor() {
 			return new MethodValidationPostProcessor();
 		}
 

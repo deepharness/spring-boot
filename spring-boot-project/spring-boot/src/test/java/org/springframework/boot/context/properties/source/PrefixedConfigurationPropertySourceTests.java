@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,9 +33,9 @@ class PrefixedConfigurationPropertySourceTests {
 		source.put("my.foo.bar", "bing");
 		source.put("my.foo.baz", "biff");
 		ConfigurationPropertySource prefixed = source.nonIterable().withPrefix("my");
-		assertThat(getName(prefixed, "foo.bar").toString()).isEqualTo("foo.bar");
+		assertThat(getName(prefixed, "foo.bar")).hasToString("foo.bar");
 		assertThat(getValue(prefixed, "foo.bar")).isEqualTo("bing");
-		assertThat(getName(prefixed, "foo.baz").toString()).isEqualTo("foo.baz");
+		assertThat(getName(prefixed, "foo.baz")).hasToString("foo.baz");
 		assertThat(getValue(prefixed, "foo.baz")).isEqualTo("biff");
 	}
 
@@ -45,27 +45,27 @@ class PrefixedConfigurationPropertySourceTests {
 		ConfigurationPropertySource source = new KnownAncestorsConfigurationPropertySource().unknown(name);
 		ConfigurationPropertySource prefixed = source.withPrefix("my");
 		assertThat(prefixed.containsDescendantOf(ConfigurationPropertyName.of("foo")))
-				.isEqualTo(ConfigurationPropertyState.UNKNOWN);
+			.isEqualTo(ConfigurationPropertyState.UNKNOWN);
 	}
 
 	@Test
 	void containsDescendantOfWhenSourceReturnsPresentShouldReturnPresent() {
 		ConfigurationPropertyName name = ConfigurationPropertyName.of("my.foo");
 		ConfigurationPropertySource source = new KnownAncestorsConfigurationPropertySource().present(name)
-				.unknown(ConfigurationPropertyName.of("bar"));
+			.unknown(ConfigurationPropertyName.of("bar"));
 		ConfigurationPropertySource prefixed = source.withPrefix("my");
 		assertThat(prefixed.containsDescendantOf(ConfigurationPropertyName.of("foo")))
-				.isEqualTo(ConfigurationPropertyState.PRESENT);
+			.isEqualTo(ConfigurationPropertyState.PRESENT);
 	}
 
 	@Test
 	void containsDescendantOfWhenSourceReturnsAbsentShouldReturnAbsent() {
 		ConfigurationPropertyName name = ConfigurationPropertyName.of("my.foo");
 		ConfigurationPropertySource source = new KnownAncestorsConfigurationPropertySource().absent(name)
-				.absent(ConfigurationPropertyName.of("bar"));
+			.absent(ConfigurationPropertyName.of("bar"));
 		ConfigurationPropertySource prefixed = source.withPrefix("my");
 		assertThat(prefixed.containsDescendantOf(ConfigurationPropertyName.of("foo")))
-				.isEqualTo(ConfigurationPropertyState.ABSENT);
+			.isEqualTo(ConfigurationPropertyState.ABSENT);
 	}
 
 	@Test

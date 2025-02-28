@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,11 +44,10 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import org.junit.platform.commons.util.ReflectionUtils;
 
 import org.springframework.boot.testsupport.BuildOutput;
-import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.util.FileSystemUtils;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.ResponseErrorHandler;
+import org.springframework.web.client.NoOpResponseErrorHandler;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriTemplateHandler;
 
@@ -82,16 +81,17 @@ class EmbeddedServerContainerInvocationContextProvider
 	@Override
 	public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
 		EmbeddedServletContainerTest annotation = context.getRequiredTestClass()
-				.getAnnotation(EmbeddedServletContainerTest.class);
-		return CONTAINERS.stream().map((container) -> getApplication(annotation, container))
-				.flatMap((builder) -> provideTestTemplateInvocationContexts(annotation, builder));
+			.getAnnotation(EmbeddedServletContainerTest.class);
+		return CONTAINERS.stream()
+			.map((container) -> getApplication(annotation, container))
+			.flatMap((builder) -> provideTestTemplateInvocationContexts(annotation, builder));
 	}
 
 	private Stream<EmbeddedServletContainerInvocationContext> provideTestTemplateInvocationContexts(
 			EmbeddedServletContainerTest annotation, Application application) {
 		return Stream.of(annotation.launchers())
-				.map((launcherClass) -> getAbstractApplicationLauncher(application, launcherClass))
-				.map((launcher) -> provideTestTemplateInvocationContext(application, launcher));
+			.map((launcherClass) -> getAbstractApplicationLauncher(application, launcherClass))
+			.map((launcher) -> provideTestTemplateInvocationContext(application, launcher));
 	}
 
 	private EmbeddedServletContainerInvocationContext provideTestTemplateInvocationContext(Application application,
@@ -115,8 +115,9 @@ class EmbeddedServerContainerInvocationContextProvider
 	private AbstractApplicationLauncher getAbstractApplicationLauncher(Application application,
 			Class<? extends AbstractApplicationLauncher> launcherClass) {
 		String cacheKey = application.getContainer() + ":" + application.getPackaging() + ":" + launcherClass.getName();
-		if (this.launcherCache.containsKey(cacheKey)) {
-			return this.launcherCache.get(cacheKey);
+		AbstractApplicationLauncher cachedLauncher = this.launcherCache.get(cacheKey);
+		if (cachedLauncher != null) {
+			return cachedLauncher;
 		}
 		AbstractApplicationLauncher launcher = ReflectionUtils.newInstance(launcherClass, application,
 				new File(buildOutput.getRootLocation(), "app-launcher-" + UUID.randomUUID()));
@@ -154,10 +155,7 @@ class EmbeddedServerContainerInvocationContextProvider
 			if (parameterContext.getParameter().getType().equals(AbstractApplicationLauncher.class)) {
 				return true;
 			}
-			if (parameterContext.getParameter().getType().equals(RestTemplate.class)) {
-				return true;
-			}
-			return false;
+			return parameterContext.getParameter().getType().equals(RestTemplate.class);
 		}
 
 		@Override
@@ -186,21 +184,9 @@ class EmbeddedServerContainerInvocationContextProvider
 		@Override
 		public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
 			RestTemplate rest = new RestTemplate(new HttpComponentsClientHttpRequestFactory(HttpClients.custom()
-					.setRetryStrategy(new DefaultHttpRequestRetryStrategy(10, TimeValue.of(1, TimeUnit.SECONDS)))
-					.build()));
-			rest.setErrorHandler(new ResponseErrorHandler() {
-
-				@Override
-				public boolean hasError(ClientHttpResponse response) throws IOException {
-					return false;
-				}
-
-				@Override
-				public void handleError(ClientHttpResponse response) throws IOException {
-
-				}
-
-			});
+				.setRetryStrategy(new DefaultHttpRequestRetryStrategy(10, TimeValue.of(1, TimeUnit.SECONDS)))
+				.build()));
+			rest.setErrorHandler(new NoOpResponseErrorHandler());
 			rest.setUriTemplateHandler(new UriTemplateHandler() {
 
 				@Override

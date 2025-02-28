@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import io.micrometer.core.instrument.binder.logging.LogbackMetrics;
 import io.micrometer.core.instrument.simple.SimpleConfig;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.servlet.DispatcherType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -99,40 +100,47 @@ class MetricsIntegrationTests {
 	@Autowired
 	private MeterRegistry registry;
 
+	@BeforeEach
+	void setUp() {
+		this.registry.clear();
+	}
+
 	@SuppressWarnings("unchecked")
 	@Test
 	void restTemplateIsInstrumented() {
 		MockRestServiceServer server = MockRestServiceServer.bindTo(this.external).build();
-		server.expect(once(), requestTo("/api/external")).andExpect(method(HttpMethod.GET))
-				.andRespond(withSuccess("{\"message\": \"hello\"}", MediaType.APPLICATION_JSON));
+		server.expect(once(), requestTo("/api/external"))
+			.andExpect(method(HttpMethod.GET))
+			.andRespond(withSuccess("{\"message\": \"hello\"}", MediaType.APPLICATION_JSON));
 		assertThat(this.external.getForObject("/api/external", Map.class)).containsKey("message");
-		assertThat(this.registry.get("http.client.requests").timer().count()).isEqualTo(1);
+		assertThat(this.registry.get("http.client.requests").timer().count()).isOne();
 	}
 
 	@Test
 	void requestMappingIsInstrumented() {
 		this.loopback.getForObject("/api/people", Set.class);
-		waitAtMost(Duration.ofSeconds(5)).untilAsserted(
-				() -> assertThat(this.registry.get("http.server.requests").timer().count()).isEqualTo(1));
+		waitAtMost(Duration.ofSeconds(5))
+			.untilAsserted(() -> assertThat(this.registry.get("http.server.requests").timer().count()).isOne());
 
 	}
 
 	@Test
 	void automaticallyRegisteredBinders() {
 		assertThat(this.context.getBeansOfType(MeterBinder.class).values())
-				.hasAtLeastOneElementOfType(LogbackMetrics.class).hasAtLeastOneElementOfType(JvmMemoryMetrics.class);
+			.hasAtLeastOneElementOfType(LogbackMetrics.class)
+			.hasAtLeastOneElementOfType(JvmMemoryMetrics.class);
 	}
 
 	@Test
 	@SuppressWarnings({ "rawtypes", "unchecked" })
 	void metricsFilterRegisteredForAsyncDispatches() {
 		Map<String, FilterRegistrationBean> filterRegistrations = this.context
-				.getBeansOfType(FilterRegistrationBean.class);
+			.getBeansOfType(FilterRegistrationBean.class);
 		assertThat(filterRegistrations).containsKey("webMvcObservationFilter");
 		FilterRegistrationBean registration = filterRegistrations.get("webMvcObservationFilter");
 		assertThat(registration.getFilter()).isInstanceOf(ServerHttpObservationFilter.class);
 		assertThat((Set<DispatcherType>) ReflectionTestUtils.getField(registration, "dispatcherTypes"))
-				.containsExactlyInAnyOrder(DispatcherType.REQUEST, DispatcherType.ASYNC);
+			.containsExactlyInAnyOrder(DispatcherType.REQUEST, DispatcherType.ASYNC);
 	}
 
 	@Configuration(proxyBeanMethods = false)

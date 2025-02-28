@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 
 package org.springframework.boot.autoconfigure.http;
 
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -94,16 +96,17 @@ public class HttpMessageConvertersAutoConfiguration {
 		}
 
 		@ConditionalOnWebApplication(type = Type.REACTIVE)
-		private static class ReactiveWebApplication {
+		private static final class ReactiveWebApplication {
 
 		}
 
 	}
 
-	static class HttpMessageConvertersAutoConfigurationRuntimeHints extends BindableRuntimeHintsRegistrar {
+	static class HttpMessageConvertersAutoConfigurationRuntimeHints implements RuntimeHintsRegistrar {
 
-		HttpMessageConvertersAutoConfigurationRuntimeHints() {
-			super(Encoding.class);
+		@Override
+		public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+			BindableRuntimeHintsRegistrar.forTypes(Encoding.class).registerHints(hints, classLoader);
 		}
 
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 the original author or authors.
+ * Copyright 2020-2024 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,8 +66,8 @@ class HttpGraphQlTesterContextCustomizer implements ContextCustomizer {
 
 	private void registerHttpGraphQlTester(ConfigurableApplicationContext context) {
 		ConfigurableListableBeanFactory beanFactory = context.getBeanFactory();
-		if (beanFactory instanceof BeanDefinitionRegistry) {
-			registerHttpGraphQlTester((BeanDefinitionRegistry) beanFactory);
+		if (beanFactory instanceof BeanDefinitionRegistry beanDefinitionRegistry) {
+			registerHttpGraphQlTester(beanDefinitionRegistry);
 		}
 	}
 
@@ -210,7 +210,7 @@ class HttpGraphQlTesterContextCustomizer implements ContextCustomizer {
 		private boolean isSslEnabled(ApplicationContext context) {
 			try {
 				AbstractConfigurableWebServerFactory webServerFactory = context
-						.getBean(AbstractConfigurableWebServerFactory.class);
+					.getBean(AbstractConfigurableWebServerFactory.class);
 				return webServerFactory.getSsl() != null && webServerFactory.getSsl().isEnabled();
 			}
 			catch (NoSuchBeanDefinitionException ex) {

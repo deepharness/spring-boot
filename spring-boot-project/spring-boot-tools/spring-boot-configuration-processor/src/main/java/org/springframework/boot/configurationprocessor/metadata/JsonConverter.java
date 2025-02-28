@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,6 +31,7 @@ import org.springframework.boot.configurationprocessor.metadata.ItemMetadata.Ite
  *
  * @author Stephane Nicoll
  * @author Phillip Webb
+ * @author Moritz Halbritter
  */
 class JsonConverter {
 
@@ -38,8 +39,11 @@ class JsonConverter {
 
 	JSONArray toJsonArray(ConfigurationMetadata metadata, ItemType itemType) throws Exception {
 		JSONArray jsonArray = new JSONArray();
-		List<ItemMetadata> items = metadata.getItems().stream().filter((item) -> item.isOfItemType(itemType))
-				.sorted(ITEM_COMPARATOR).toList();
+		List<ItemMetadata> items = metadata.getItems()
+			.stream()
+			.filter((item) -> item.isOfItemType(itemType))
+			.sorted(ITEM_COMPARATOR)
+			.toList();
 		for (ItemMetadata item : items) {
 			if (item.isOfItemType(itemType)) {
 				jsonArray.put(toJsonObject(item));
@@ -54,6 +58,21 @@ class JsonConverter {
 			jsonArray.put(toJsonObject(hint));
 		}
 		return jsonArray;
+	}
+
+	JSONObject toJsonObject(Collection<ItemIgnore> ignored) throws Exception {
+		JSONObject result = new JSONObject();
+		result.put("properties", ignoreToJsonArray(
+				ignored.stream().filter((itemIgnore) -> itemIgnore.getType() == ItemType.PROPERTY).toList()));
+		return result;
+	}
+
+	private JSONArray ignoreToJsonArray(Collection<ItemIgnore> ignored) throws Exception {
+		JSONArray result = new JSONArray();
+		for (ItemIgnore itemIgnore : ignored) {
+			result.put(toJsonObject(itemIgnore));
+		}
+		return result;
 	}
 
 	JSONObject toJsonObject(ItemMetadata item) throws Exception {
@@ -80,6 +99,9 @@ class JsonConverter {
 			if (deprecation.getReplacement() != null) {
 				deprecationJsonObject.put("replacement", deprecation.getReplacement());
 			}
+			if (deprecation.getSince() != null) {
+				deprecationJsonObject.put("since", deprecation.getSince());
+			}
 			jsonObject.put("deprecation", deprecationJsonObject);
 		}
 		return jsonObject;
@@ -94,6 +116,12 @@ class JsonConverter {
 		if (!hint.getProviders().isEmpty()) {
 			jsonObject.put("providers", getItemHintProviders(hint));
 		}
+		return jsonObject;
+	}
+
+	private JSONObject toJsonObject(ItemIgnore ignore) throws Exception {
+		JSONObject jsonObject = new JSONObject();
+		jsonObject.put("name", ignore.getName());
 		return jsonObject;
 	}
 
@@ -157,14 +185,14 @@ class JsonConverter {
 		return defaultValue;
 	}
 
-	private static class ItemMetadataComparator implements Comparator<ItemMetadata> {
+	private static final class ItemMetadataComparator implements Comparator<ItemMetadata> {
 
 		private static final Comparator<ItemMetadata> GROUP = Comparator.comparing(ItemMetadata::getName)
-				.thenComparing(ItemMetadata::getSourceType, Comparator.nullsFirst(Comparator.naturalOrder()));
+			.thenComparing(ItemMetadata::getSourceType, Comparator.nullsFirst(Comparator.naturalOrder()));
 
 		private static final Comparator<ItemMetadata> ITEM = Comparator.comparing(ItemMetadataComparator::isDeprecated)
-				.thenComparing(ItemMetadata::getName)
-				.thenComparing(ItemMetadata::getSourceType, Comparator.nullsFirst(Comparator.naturalOrder()));
+			.thenComparing(ItemMetadata::getName)
+			.thenComparing(ItemMetadata::getSourceType, Comparator.nullsFirst(Comparator.naturalOrder()));
 
 		@Override
 		public int compare(ItemMetadata o1, ItemMetadata o2) {

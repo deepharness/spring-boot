@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -44,22 +44,22 @@ class ConfigurationPropertiesReportEndpointFilteringTests {
 	@Test
 	void filterByPrefixSingleMatch() {
 		ApplicationContextRunner contextRunner = new ApplicationContextRunner().withUserConfiguration(Config.class)
-				.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
+			.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
 		assertProperties(contextRunner, "solo1");
 	}
 
 	@Test
 	void filterByPrefixMultipleMatches() {
 		ApplicationContextRunner contextRunner = new ApplicationContextRunner().withUserConfiguration(Config.class)
-				.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
+			.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
 		contextRunner.run((context) -> {
 			ConfigurationPropertiesReportEndpoint endpoint = context
-					.getBean(ConfigurationPropertiesReportEndpoint.class);
+				.getBean(ConfigurationPropertiesReportEndpoint.class);
 			ConfigurationPropertiesDescriptor applicationProperties = endpoint
-					.configurationPropertiesWithPrefix("foo.");
+				.configurationPropertiesWithPrefix("foo.");
 			assertThat(applicationProperties.getContexts()).containsOnlyKeys(context.getId());
 			ContextConfigurationPropertiesDescriptor contextProperties = applicationProperties.getContexts()
-					.get(context.getId());
+				.get(context.getId());
 			assertThat(contextProperties.getBeans()).containsOnlyKeys("primaryFoo", "secondaryFoo");
 		});
 	}
@@ -67,15 +67,15 @@ class ConfigurationPropertiesReportEndpointFilteringTests {
 	@Test
 	void filterByPrefixNoMatches() {
 		ApplicationContextRunner contextRunner = new ApplicationContextRunner().withUserConfiguration(Config.class)
-				.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
+			.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
 		contextRunner.run((context) -> {
 			ConfigurationPropertiesReportEndpoint endpoint = context
-					.getBean(ConfigurationPropertiesReportEndpoint.class);
+				.getBean(ConfigurationPropertiesReportEndpoint.class);
 			ConfigurationPropertiesDescriptor applicationProperties = endpoint
-					.configurationPropertiesWithPrefix("foo.third");
+				.configurationPropertiesWithPrefix("foo.third");
 			assertThat(applicationProperties.getContexts()).containsOnlyKeys(context.getId());
 			ContextConfigurationPropertiesDescriptor contextProperties = applicationProperties.getContexts()
-					.get(context.getId());
+				.get(context.getId());
 			assertThat(contextProperties.getBeans()).isEmpty();
 		});
 	}
@@ -83,33 +83,36 @@ class ConfigurationPropertiesReportEndpointFilteringTests {
 	@Test
 	void noSanitizationWhenShowAlways() {
 		ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-				.withUserConfiguration(ConfigWithAlways.class)
-				.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
+			.withUserConfiguration(ConfigWithAlways.class)
+			.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
 		assertProperties(contextRunner, "solo1");
 	}
 
 	@Test
 	void sanitizationWhenShowNever() {
 		ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-				.withUserConfiguration(ConfigWithNever.class)
-				.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
+			.withUserConfiguration(ConfigWithNever.class)
+			.withPropertyValues("foo.primary.name:foo1", "foo.secondary.name:foo2", "only.bar.name:solo1");
 		assertProperties(contextRunner, "******");
 	}
 
 	private void assertProperties(ApplicationContextRunner contextRunner, String value) {
 		contextRunner.run((context) -> {
 			ConfigurationPropertiesReportEndpoint endpoint = context
-					.getBean(ConfigurationPropertiesReportEndpoint.class);
+				.getBean(ConfigurationPropertiesReportEndpoint.class);
 			ConfigurationPropertiesDescriptor applicationProperties = endpoint
-					.configurationPropertiesWithPrefix("only.bar");
+				.configurationPropertiesWithPrefix("only.bar");
 			assertThat(applicationProperties.getContexts()).containsOnlyKeys(context.getId());
 			ContextConfigurationPropertiesDescriptor contextProperties = applicationProperties.getContexts()
-					.get(context.getId());
-			Optional<String> key = contextProperties.getBeans().keySet().stream()
-					.filter((id) -> findIdFromPrefix("only.bar", id)).findAny();
+				.get(context.getId());
+			Optional<String> key = contextProperties.getBeans()
+				.keySet()
+				.stream()
+				.filter((id) -> findIdFromPrefix("only.bar", id))
+				.findAny();
 			ConfigurationPropertiesBeanDescriptor descriptor = contextProperties.getBeans().get(key.get());
 			assertThat(descriptor.getPrefix()).isEqualTo("only.bar");
-			assertThat(descriptor.getProperties().get("name")).isEqualTo(value);
+			assertThat(descriptor.getProperties()).containsEntry("name", value);
 		});
 	}
 
@@ -160,13 +163,13 @@ class ConfigurationPropertiesReportEndpointFilteringTests {
 	static class BaseConfiguration {
 
 		@Bean
-		@ConfigurationProperties(prefix = "foo.primary")
+		@ConfigurationProperties("foo.primary")
 		Foo primaryFoo() {
 			return new Foo();
 		}
 
 		@Bean
-		@ConfigurationProperties(prefix = "foo.secondary")
+		@ConfigurationProperties("foo.secondary")
 		Foo secondaryFoo() {
 			return new Foo();
 		}
@@ -187,7 +190,7 @@ class ConfigurationPropertiesReportEndpointFilteringTests {
 
 	}
 
-	@ConfigurationProperties(prefix = "only.bar")
+	@ConfigurationProperties("only.bar")
 	public static class Bar {
 
 		private String name = "123456";

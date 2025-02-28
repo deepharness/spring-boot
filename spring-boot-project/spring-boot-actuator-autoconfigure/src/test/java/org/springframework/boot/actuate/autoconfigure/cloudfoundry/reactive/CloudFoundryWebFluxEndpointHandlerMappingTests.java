@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,8 +38,8 @@ class CloudFoundryWebFluxEndpointHandlerMappingTests {
 		RuntimeHints runtimeHints = new RuntimeHints();
 		new CloudFoundryWebFluxEndpointHandlerMappingRuntimeHints().registerHints(runtimeHints,
 				getClass().getClassLoader());
-		assertThat(RuntimeHintsPredicates.reflection().onMethod(CloudFoundryLinksHandler.class, "links"))
-				.accepts(runtimeHints);
+		assertThat(RuntimeHintsPredicates.reflection().onMethod(CloudFoundryLinksHandler.class, "links").invoke())
+			.accepts(runtimeHints);
 		assertThat(RuntimeHintsPredicates.reflection().onType(Link.class)).accepts(runtimeHints);
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.springframework.boot.rsocket.netty;
 
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 
@@ -38,17 +39,27 @@ import org.mockito.InOrder;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.Http11SslContextSpec;
 import reactor.netty.http.client.HttpClient;
+import reactor.netty.tcp.SslProvider.GenericSslContextSpec;
 import reactor.netty.tcp.TcpClient;
 import reactor.test.StepVerifier;
 
 import org.springframework.boot.rsocket.server.RSocketServer;
 import org.springframework.boot.rsocket.server.RSocketServer.Transport;
 import org.springframework.boot.rsocket.server.RSocketServerCustomizer;
+import org.springframework.boot.ssl.DefaultSslBundleRegistry;
+import org.springframework.boot.ssl.SslBundle;
+import org.springframework.boot.ssl.SslBundleKey;
+import org.springframework.boot.ssl.jks.JksSslStoreBundle;
+import org.springframework.boot.ssl.jks.JksSslStoreDetails;
+import org.springframework.boot.ssl.pem.PemSslStoreBundle;
+import org.springframework.boot.ssl.pem.PemSslStoreDetails;
+import org.springframework.boot.testsupport.classpath.resources.ResourcePath;
+import org.springframework.boot.testsupport.classpath.resources.WithPackageResources;
 import org.springframework.boot.web.server.Ssl;
 import org.springframework.core.codec.CharSequenceEncoder;
 import org.springframework.core.codec.StringDecoder;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
-import org.springframework.http.client.reactive.ReactorResourceFactory;
+import org.springframework.http.client.ReactorResourceFactory;
 import org.springframework.messaging.rsocket.RSocketRequester;
 import org.springframework.messaging.rsocket.RSocketStrategies;
 
@@ -137,7 +148,7 @@ class NettyRSocketServerFactoryTests {
 		for (int i = 0; i < customizers.length; i++) {
 			customizers[i] = mock(RSocketServerCustomizer.class);
 			will((invocation) -> invocation.getArgument(0)).given(customizers[i])
-					.customize(any(io.rsocket.core.RSocketServer.class));
+				.customize(any(io.rsocket.core.RSocketServer.class));
 		}
 		factory.setRSocketServerCustomizers(Arrays.asList(customizers));
 		this.server = factory.create(new EchoRequestResponseAcceptor());
@@ -148,53 +159,113 @@ class NettyRSocketServerFactoryTests {
 	}
 
 	@Test
+	@WithPackageResources("test.jks")
 	void tcpTransportBasicSslFromClassPath() {
 		testBasicSslWithKeyStore("classpath:test.jks", "password", Transport.TCP);
 	}
 
 	@Test
-	void tcpTransportBasicSslFromFileSystem() {
-		testBasicSslWithKeyStore("src/test/resources/test.jks", "password", Transport.TCP);
+	@WithPackageResources("test.jks")
+	void tcpTransportBasicSslFromFileSystem(@ResourcePath("test.jks") String keyStore) {
+		testBasicSslWithKeyStore(keyStore, "password", Transport.TCP);
 	}
 
 	@Test
+	@WithPackageResources("test.jks")
 	void websocketTransportBasicSslFromClassPath() {
 		testBasicSslWithKeyStore("classpath:test.jks", "password", Transport.WEBSOCKET);
 	}
 
 	@Test
-	void websocketTransportBasicSslFromFileSystem() {
-		testBasicSslWithKeyStore("src/test/resources/test.jks", "password", Transport.WEBSOCKET);
+	@WithPackageResources("test.jks")
+	void websocketTransportBasicSslFromFileSystem(@ResourcePath("test.jks") String keyStore) {
+		testBasicSslWithKeyStore(keyStore, "password", Transport.WEBSOCKET);
 	}
 
 	@Test
+	@WithPackageResources({ "test-cert.pem", "test-key.pem" })
 	void tcpTransportBasicSslCertificateFromClassPath() {
 		testBasicSslWithPemCertificate("classpath:test-cert.pem", "classpath:test-key.pem", "classpath:test-cert.pem",
 				Transport.TCP);
 	}
 
 	@Test
-	void tcpTransportBasicSslCertificateFromFileSystem() {
-		testBasicSslWithPemCertificate("src/test/resources/test-cert.pem", "src/test/resources/test-key.pem",
-				"src/test/resources/test-cert.pem", Transport.TCP);
+	@WithPackageResources({ "test-cert.pem", "test-key.pem" })
+	void tcpTransportBasicSslCertificateFromFileSystem(@ResourcePath("test-cert.pem") String testCert,
+			@ResourcePath("test-key.pem") String testKey) {
+		testBasicSslWithPemCertificate(testCert, testKey, testCert, Transport.TCP);
 	}
 
 	@Test
+	@WithPackageResources({ "test-cert.pem", "test-key.pem" })
 	void websocketTransportBasicSslCertificateFromClassPath() {
 		testBasicSslWithPemCertificate("classpath:test-cert.pem", "classpath:test-key.pem", "classpath:test-cert.pem",
 				Transport.WEBSOCKET);
 	}
 
 	@Test
-	void websocketTransportBasicSslCertificateFromFileSystem() {
-		testBasicSslWithPemCertificate("src/test/resources/test-cert.pem", "src/test/resources/test-key.pem",
-				"src/test/resources/test-cert.pem", Transport.WEBSOCKET);
+	@WithPackageResources({ "test-cert.pem", "test-key.pem" })
+	void websocketTransportBasicSslCertificateFromFileSystem(@ResourcePath("test-cert.pem") String testCert,
+			@ResourcePath("test-key.pem") String testKey) {
+		testBasicSslWithPemCertificate(testCert, testKey, testCert, Transport.WEBSOCKET);
+	}
+
+	@Test
+	@WithPackageResources("test.jks")
+	void tcpTransportBasicSslFromClassPathWithBundle() {
+		testBasicSslWithKeyStoreFromBundle("classpath:test.jks", "password", Transport.TCP);
+	}
+
+	@Test
+	@WithPackageResources("test.jks")
+	void tcpTransportBasicSslFromFileSystemWithBundle(@ResourcePath("test.jks") String keyStore) {
+		testBasicSslWithKeyStoreFromBundle(keyStore, "password", Transport.TCP);
+	}
+
+	@Test
+	@WithPackageResources("test.jks")
+	void websocketTransportBasicSslFromClassPathWithBundle() {
+		testBasicSslWithKeyStoreFromBundle("classpath:test.jks", "password", Transport.WEBSOCKET);
+	}
+
+	@Test
+	@WithPackageResources("test.jks")
+	void websocketTransportBasicSslFromFileSystemWithBundle(@ResourcePath("test.jks") String keyStore) {
+		testBasicSslWithKeyStoreFromBundle(keyStore, "password", Transport.WEBSOCKET);
+	}
+
+	@Test
+	@WithPackageResources({ "test-cert.pem", "test-key.pem" })
+	void tcpTransportBasicSslCertificateFromClassPathWithBundle() {
+		testBasicSslWithPemCertificateFromBundle("classpath:test-cert.pem", "classpath:test-key.pem",
+				"classpath:test-cert.pem", Transport.TCP);
+	}
+
+	@Test
+	@WithPackageResources({ "test-cert.pem", "test-key.pem" })
+	void tcpTransportBasicSslCertificateFromFileSystemWithBundle(@ResourcePath("test-cert.pem") String testCert,
+			@ResourcePath("test-key.pem") String testKey) {
+		testBasicSslWithPemCertificateFromBundle(testCert, testKey, testCert, Transport.TCP);
+	}
+
+	@Test
+	@WithPackageResources({ "test-cert.pem", "test-key.pem" })
+	void websocketTransportBasicSslCertificateFromClassPathWithBundle() {
+		testBasicSslWithPemCertificateFromBundle("classpath:test-cert.pem", "classpath:test-key.pem",
+				"classpath:test-cert.pem", Transport.WEBSOCKET);
+	}
+
+	@Test
+	@WithPackageResources({ "test-cert.pem", "test-key.pem" })
+	void websocketTransportBasicSslCertificateFromFileSystemWithBundle(@ResourcePath("test-cert.pem") String testCert,
+			@ResourcePath("test-key.pem") String testKey) {
+		testBasicSslWithPemCertificateFromBundle(testCert, testKey, testCert, Transport.WEBSOCKET);
 	}
 
 	private void checkEchoRequest() {
 		String payload = "test payload";
 		Mono<String> response = this.requester.route("test").data(payload).retrieveMono(String.class);
-		StepVerifier.create(response).expectNext(payload).verifyComplete();
+		StepVerifier.create(response).expectNext(payload).expectComplete().verify(Duration.ofSeconds(30));
 	}
 
 	private void testBasicSslWithKeyStore(String keyStore, String keyPassword, Transport transport) {
@@ -228,12 +299,45 @@ class NettyRSocketServerFactoryTests {
 		checkEchoRequest();
 	}
 
+	private void testBasicSslWithKeyStoreFromBundle(String keyStore, String keyPassword, Transport transport) {
+		NettyRSocketServerFactory factory = getFactory();
+		factory.setTransport(transport);
+		JksSslStoreDetails keyStoreDetails = JksSslStoreDetails.forLocation(keyStore);
+		JksSslStoreDetails trustStoreDetails = null;
+		SslBundle sslBundle = SslBundle.of(new JksSslStoreBundle(keyStoreDetails, trustStoreDetails),
+				SslBundleKey.of(keyPassword));
+		factory.setSsl(Ssl.forBundle("test"));
+		factory.setSslBundles(new DefaultSslBundleRegistry("test", sslBundle));
+		this.server = factory.create(new EchoRequestResponseAcceptor());
+		this.server.start();
+		this.requester = (transport == Transport.TCP) ? createSecureRSocketTcpClient()
+				: createSecureRSocketWebSocketClient();
+		checkEchoRequest();
+	}
+
+	private void testBasicSslWithPemCertificateFromBundle(String certificate, String certificatePrivateKey,
+			String trustCertificate, Transport transport) {
+		NettyRSocketServerFactory factory = getFactory();
+		factory.setTransport(transport);
+		PemSslStoreDetails keyStoreDetails = PemSslStoreDetails.forCertificate(certificate)
+			.withPrivateKey(certificatePrivateKey);
+		PemSslStoreDetails trustStoreDetails = PemSslStoreDetails.forCertificate(trustCertificate);
+		SslBundle sslBundle = SslBundle.of(new PemSslStoreBundle(keyStoreDetails, trustStoreDetails));
+		factory.setSsl(Ssl.forBundle("test"));
+		factory.setSslBundles(new DefaultSslBundleRegistry("test", sslBundle));
+		this.server = factory.create(new EchoRequestResponseAcceptor());
+		this.server.start();
+		this.requester = (transport == Transport.TCP) ? createSecureRSocketTcpClient()
+				: createSecureRSocketWebSocketClient();
+		checkEchoRequest();
+	}
+
 	@Test
 	void tcpTransportSslRejectsInsecureClient() {
 		NettyRSocketServerFactory factory = getFactory();
 		factory.setTransport(Transport.TCP);
 		Ssl ssl = new Ssl();
-		ssl.setKeyStore("classpath:test.jks");
+		ssl.setKeyStore("classpath:org/springframework/boot/rsocket/netty/test.jks");
 		ssl.setKeyPassword("password");
 		factory.setSsl(ssl);
 		this.server = factory.create(new EchoRequestResponseAcceptor());
@@ -242,7 +346,7 @@ class NettyRSocketServerFactoryTests {
 		String payload = "test payload";
 		Mono<String> responseMono = this.requester.route("test").data(payload).retrieveMono(String.class);
 		StepVerifier.create(responseMono)
-				.verifyErrorSatisfies((ex) -> assertThat(ex).isInstanceOf(ClosedChannelException.class));
+			.verifyErrorSatisfies((ex) -> assertThat(ex).isInstanceOf(ClosedChannelException.class));
 	}
 
 	private RSocketRequester createRSocketTcpClient() {
@@ -259,13 +363,14 @@ class NettyRSocketServerFactoryTests {
 
 	private RSocketRequester createSecureRSocketWebSocketClient() {
 		return createRSocketRequesterBuilder()
-				.transport(WebsocketClientTransport.create(createSecureHttpClient(), "/"));
+			.transport(WebsocketClientTransport.create(createSecureHttpClient(), "/"));
 	}
 
 	private HttpClient createSecureHttpClient() {
 		HttpClient httpClient = createHttpClient();
-		Http11SslContextSpec sslContextSpec = Http11SslContextSpec.forClient().configure(
-				(builder) -> builder.sslProvider(SslProvider.JDK).trustManager(InsecureTrustManagerFactory.INSTANCE));
+		GenericSslContextSpec<?> sslContextSpec = Http11SslContextSpec.forClient()
+			.configure((builder) -> builder.sslProvider(SslProvider.JDK)
+				.trustManager(InsecureTrustManagerFactory.INSTANCE));
 		return httpClient.secure((spec) -> spec.sslContext(sslContextSpec));
 	}
 
@@ -277,8 +382,9 @@ class NettyRSocketServerFactoryTests {
 
 	private TcpClient createSecureTcpClient() {
 		TcpClient tcpClient = createTcpClient();
-		Http11SslContextSpec sslContextSpec = Http11SslContextSpec.forClient().configure(
-				(builder) -> builder.sslProvider(SslProvider.JDK).trustManager(InsecureTrustManagerFactory.INSTANCE));
+		GenericSslContextSpec<?> sslContextSpec = Http11SslContextSpec.forClient()
+			.configure((builder) -> builder.sslProvider(SslProvider.JDK)
+				.trustManager(InsecureTrustManagerFactory.INSTANCE));
 		return tcpClient.secure((spec) -> spec.sslContext(sslContextSpec));
 	}
 
@@ -289,9 +395,11 @@ class NettyRSocketServerFactoryTests {
 	}
 
 	private RSocketRequester.Builder createRSocketRequesterBuilder() {
-		RSocketStrategies strategies = RSocketStrategies.builder().decoder(StringDecoder.allMimeTypes())
-				.encoder(CharSequenceEncoder.allMimeTypes())
-				.dataBufferFactory(new NettyDataBufferFactory(PooledByteBufAllocator.DEFAULT)).build();
+		RSocketStrategies strategies = RSocketStrategies.builder()
+			.decoder(StringDecoder.allMimeTypes())
+			.encoder(CharSequenceEncoder.allMimeTypes())
+			.dataBufferFactory(new NettyDataBufferFactory(PooledByteBufAllocator.DEFAULT))
+			.build();
 		return RSocketRequester.builder().rsocketStrategies(strategies);
 	}
 

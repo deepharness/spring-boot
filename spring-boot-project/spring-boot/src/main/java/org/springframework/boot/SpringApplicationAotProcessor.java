@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -65,12 +65,16 @@ public class SpringApplicationAotProcessor extends ContextAotProcessor {
 
 	public static void main(String[] args) throws Exception {
 		int requiredArgs = 6;
-		Assert.isTrue(args.length >= requiredArgs, () -> "Usage: " + SpringApplicationAotProcessor.class.getName()
-				+ " <applicationName> <sourceOutput> <resourceOutput> <classOutput> <groupId> <artifactId> <originalArgs...>");
+		Assert.state(args.length >= requiredArgs, () -> "Usage: " + SpringApplicationAotProcessor.class.getName()
+				+ " <applicationMainClass> <sourceOutput> <resourceOutput> <classOutput> <groupId> <artifactId> <originalArgs...>");
 		Class<?> application = Class.forName(args[0]);
-		Settings settings = Settings.builder().sourceOutput(Paths.get(args[1])).resourceOutput(Paths.get(args[2]))
-				.classOutput(Paths.get(args[3])).groupId((StringUtils.hasText(args[4])) ? args[4] : "unspecified")
-				.artifactId(args[5]).build();
+		Settings settings = Settings.builder()
+			.sourceOutput(Paths.get(args[1]))
+			.resourceOutput(Paths.get(args[2]))
+			.classOutput(Paths.get(args[3]))
+			.groupId((StringUtils.hasText(args[4])) ? args[4] : "unspecified")
+			.artifactId(args[5])
+			.build();
 		String[] applicationArgs = (args.length > requiredArgs) ? Arrays.copyOfRange(args, requiredArgs, args.length)
 				: new String[0];
 		new SpringApplicationAotProcessor(application, settings, applicationArgs).process();
@@ -106,14 +110,14 @@ public class SpringApplicationAotProcessor extends ContextAotProcessor {
 			}
 			catch (AbandonedRunException ex) {
 				ApplicationContext context = ex.getApplicationContext();
-				Assert.isInstanceOf(GenericApplicationContext.class, context,
+				Assert.state(context instanceof GenericApplicationContext,
 						() -> "AOT processing requires a GenericApplicationContext but got a "
 								+ context.getClass().getName());
 				return (GenericApplicationContext) context;
 			}
 			throw new IllegalStateException(
 					"No application context available after calling main method of '%s'. Does it run a SpringApplication?"
-							.formatted(this.application.getName()));
+						.formatted(this.application.getName()));
 		}
 
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2020 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ import java.net.URI;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.boot.testsupport.classpath.resources.WithResource;
 import org.springframework.boot.testsupport.web.servlet.DirtiesUrlFactories;
-import org.springframework.boot.testsupport.web.servlet.Servlet5ClassPathOverrides;
 import org.springframework.boot.web.embedded.jetty.JettyServletWebServerFactory;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
 import org.springframework.boot.web.embedded.undertow.UndertowServletWebServerFactory;
@@ -75,7 +75,6 @@ class ServletWebServerMvcIntegrationTests {
 	}
 
 	@Test
-	@Servlet5ClassPathOverrides
 	void jetty() throws Exception {
 		this.context = new AnnotationConfigServletWebServerApplicationContext(JettyConfig.class);
 		doTest(this.context, "/hello");
@@ -88,7 +87,7 @@ class ServletWebServerMvcIntegrationTests {
 	}
 
 	@Test
-	@Servlet5ClassPathOverrides
+	@WithResource(name = "conf.properties", content = "context=/example")
 	void advancedConfig() throws Exception {
 		this.context = new AnnotationConfigServletWebServerApplicationContext(AdvancedConfig.class);
 		doTest(this.context, "/example/spring/hello");
@@ -164,7 +163,7 @@ class ServletWebServerMvcIntegrationTests {
 
 	@Configuration(proxyBeanMethods = false)
 	@EnableWebMvc
-	@PropertySource("classpath:/org/springframework/boot/web/servlet/context/conf.properties")
+	@PropertySource("classpath:conf.properties")
 	static class AdvancedConfig {
 
 		private final Environment env;
@@ -189,7 +188,8 @@ class ServletWebServerMvcIntegrationTests {
 
 		@Bean
 		DispatcherServlet dispatcherServlet() {
-			// Can configure dispatcher servlet here as would usually do via init-params
+			// Can configure dispatcher servlet here as would usually do through
+			// init-params
 			return new DispatcherServlet();
 		}
 

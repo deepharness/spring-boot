@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(classes = SampleTomcatWebSocketApplication.class, webEnvironment = WebEnvironment.RANDOM_PORT)
 class SampleWebSocketsApplicationTests {
 
-	private static Log logger = LogFactory.getLog(SampleWebSocketsApplicationTests.class);
+	private static final Log logger = LogFactory.getLog(SampleWebSocketsApplicationTests.class);
 
 	@LocalServerPort
 	private int port = 1234;
@@ -54,12 +54,12 @@ class SampleWebSocketsApplicationTests {
 	void echoEndpoint() {
 		ConfigurableApplicationContext context = new SpringApplicationBuilder(ClientConfiguration.class,
 				PropertyPlaceholderAutoConfiguration.class)
-						.properties("websocket.uri:ws://localhost:" + this.port + "/echo/websocket")
-						.run("--spring.main.web-application-type=none");
+			.properties("websocket.uri:ws://localhost:" + this.port + "/echo/websocket")
+			.run("--spring.main.web-application-type=none");
 		long count = context.getBean(ClientConfiguration.class).latch.getCount();
 		AtomicReference<String> messagePayloadReference = context.getBean(ClientConfiguration.class).messagePayload;
 		context.close();
-		assertThat(count).isEqualTo(0);
+		assertThat(count).isZero();
 		assertThat(messagePayloadReference.get()).isEqualTo("Did you say \"Hello world!\"?");
 	}
 
@@ -67,12 +67,12 @@ class SampleWebSocketsApplicationTests {
 	void reverseEndpoint() {
 		ConfigurableApplicationContext context = new SpringApplicationBuilder(ClientConfiguration.class,
 				PropertyPlaceholderAutoConfiguration.class)
-						.properties("websocket.uri:ws://localhost:" + this.port + "/reverse")
-						.run("--spring.main.web-application-type=none");
+			.properties("websocket.uri:ws://localhost:" + this.port + "/reverse")
+			.run("--spring.main.web-application-type=none");
 		long count = context.getBean(ClientConfiguration.class).latch.getCount();
 		AtomicReference<String> messagePayloadReference = context.getBean(ClientConfiguration.class).messagePayload;
 		context.close();
-		assertThat(count).isEqualTo(0);
+		assertThat(count).isZero();
 		assertThat(messagePayloadReference.get()).isEqualTo("Reversed: !dlrow olleH");
 	}
 

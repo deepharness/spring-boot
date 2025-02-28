@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,21 @@
 
 package org.springframework.boot.env;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.yaml.snakeyaml.constructor.ConstructorException;
+import org.yaml.snakeyaml.composer.ComposerException;
 
 import org.springframework.boot.origin.OriginTrackedValue;
 import org.springframework.boot.origin.TextResourceOrigin;
+import org.springframework.boot.testsupport.classpath.resources.WithResource;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -48,85 +52,93 @@ class OriginTrackedYamlLoaderTests {
 
 	@BeforeEach
 	void setUp() {
-		Resource resource = new ClassPathResource("test-yaml.yml", getClass());
+		Resource resource = new ClassPathResource("test-yaml.yml");
 		this.loader = new OriginTrackedYamlLoader(resource);
 	}
 
 	@Test
+	@WithTestYamlResource
 	void processSimpleKey() {
 		OriginTrackedValue value = getValue("name");
-		assertThat(value.toString()).isEqualTo("Martin D'vloper");
+		assertThat(value).hasToString("Martin D'vloper");
 		assertThat(getLocation(value)).isEqualTo("3:7");
 	}
 
 	@Test
+	@WithTestYamlResource
 	void processMap() {
 		OriginTrackedValue perl = getValue("languages.perl");
 		OriginTrackedValue python = getValue("languages.python");
 		OriginTrackedValue pascal = getValue("languages.pascal");
-		assertThat(perl.toString()).isEqualTo("Elite");
+		assertThat(perl).hasToString("Elite");
 		assertThat(getLocation(perl)).isEqualTo("13:11");
-		assertThat(python.toString()).isEqualTo("Elite");
+		assertThat(python).hasToString("Elite");
 		assertThat(getLocation(python)).isEqualTo("14:13");
-		assertThat(pascal.toString()).isEqualTo("Lame");
+		assertThat(pascal).hasToString("Lame");
 		assertThat(getLocation(pascal)).isEqualTo("15:13");
 	}
 
 	@Test
+	@WithTestYamlResource
 	void processCollection() {
 		OriginTrackedValue apple = getValue("foods[0]");
 		OriginTrackedValue orange = getValue("foods[1]");
 		OriginTrackedValue strawberry = getValue("foods[2]");
 		OriginTrackedValue mango = getValue("foods[3]");
-		assertThat(apple.toString()).isEqualTo("Apple");
+		assertThat(apple).hasToString("Apple");
 		assertThat(getLocation(apple)).isEqualTo("8:7");
-		assertThat(orange.toString()).isEqualTo("Orange");
+		assertThat(orange).hasToString("Orange");
 		assertThat(getLocation(orange)).isEqualTo("9:7");
-		assertThat(strawberry.toString()).isEqualTo("Strawberry");
+		assertThat(strawberry).hasToString("Strawberry");
 		assertThat(getLocation(strawberry)).isEqualTo("10:7");
-		assertThat(mango.toString()).isEqualTo("Mango");
+		assertThat(mango).hasToString("Mango");
 		assertThat(getLocation(mango)).isEqualTo("11:7");
 	}
 
 	@Test
+	@WithTestYamlResource
 	void processMultiline() {
 		OriginTrackedValue education = getValue("education");
-		assertThat(education.toString()).isEqualTo("4 GCSEs\n3 A-Levels\nBSc in the Internet of Things\n");
+		assertThat(education).hasToString("4 GCSEs\n3 A-Levels\nBSc in the Internet of Things\n");
 		assertThat(getLocation(education)).isEqualTo("16:12");
 	}
 
 	@Test
+	@WithTestYamlResource
 	void processListOfMaps() {
 		OriginTrackedValue name = getValue("example.foo[0].name");
 		OriginTrackedValue url = getValue("example.foo[0].url");
 		OriginTrackedValue bar1 = getValue("example.foo[0].bar[0].bar1");
 		OriginTrackedValue bar2 = getValue("example.foo[0].bar[1].bar2");
-		assertThat(name.toString()).isEqualTo("springboot");
+		assertThat(name).hasToString("springboot");
 		assertThat(getLocation(name)).isEqualTo("22:15");
-		assertThat(url.toString()).isEqualTo("https://springboot.example.com/");
+		assertThat(url).hasToString("https://springboot.example.com/");
 		assertThat(getLocation(url)).isEqualTo("23:14");
-		assertThat(bar1.toString()).isEqualTo("baz");
+		assertThat(bar1).hasToString("baz");
 		assertThat(getLocation(bar1)).isEqualTo("25:19");
-		assertThat(bar2.toString()).isEqualTo("bling");
+		assertThat(bar2).hasToString("bling");
 		assertThat(getLocation(bar2)).isEqualTo("26:19");
 	}
 
 	@Test
+	@WithTestYamlResource
 	void processEmptyAndNullValues() {
 		OriginTrackedValue empty = getValue("empty");
 		OriginTrackedValue nullValue = getValue("null-value");
+		OriginTrackedValue emptyList = getValue("emptylist");
 		assertThat(empty.getValue()).isEqualTo("");
 		assertThat(getLocation(empty)).isEqualTo("27:8");
 		assertThat(nullValue.getValue()).isEqualTo("");
 		assertThat(getLocation(nullValue)).isEqualTo("28:13");
+		assertThat(emptyList.getValue()).isEqualTo("");
+		assertThat(getLocation(emptyList)).isEqualTo("29:12");
 	}
 
 	@Test
-	void processEmptyListAndMap() {
-		OriginTrackedValue emptymap = getValue("emptymap");
-		OriginTrackedValue emptylist = getValue("emptylist");
-		assertThat(emptymap.getValue()).isEqualTo(Collections.emptyMap());
-		assertThat(emptylist.getValue()).isEqualTo(Collections.emptyList());
+	@WithTestYamlResource
+	void emptyMapsAreDropped() {
+		Object emptyMap = getValue("emptymap");
+		assertThat(emptyMap).isNull();
 	}
 
 	@Test
@@ -134,12 +146,19 @@ class OriginTrackedYamlLoaderTests {
 		String yaml = "value: !!java.net.URL [!!java.lang.String [!!java.lang.StringBuilder [\"http://localhost:9000/\"]]]";
 		Resource resource = new ByteArrayResource(yaml.getBytes(StandardCharsets.UTF_8));
 		this.loader = new OriginTrackedYamlLoader(resource);
-		assertThatExceptionOfType(ConstructorException.class).isThrownBy(this.loader::load);
+		assertThatExceptionOfType(ComposerException.class).isThrownBy(this.loader::load);
 	}
 
 	@Test
+	@WithResource(name = "test-empty-yaml.yml", content = """
+			---
+			---
+
+			---
+			---
+			""")
 	void emptyDocuments() {
-		this.loader = new OriginTrackedYamlLoader(new ClassPathResource("test-empty-yaml.yml", getClass()));
+		this.loader = new OriginTrackedYamlLoader(new ClassPathResource("test-empty-yaml.yml"));
 		List<Map<String, Object>> loaded = this.loader.load();
 		assertThat(loaded).isEmpty();
 	}
@@ -165,23 +184,107 @@ class OriginTrackedYamlLoaderTests {
 	}
 
 	@Test
+	@WithResource(name = "recursive.yml", content = """
+			&def1
+			*def1: a
+			test:
+			  a:
+			    spring: 'a'
+			  b:
+			    boot: 'b'
+			""")
 	void loadWhenRecursiveLoadsYaml() {
-		Resource resource = new ClassPathResource("recursive.yml", getClass());
+		Resource resource = new ClassPathResource("recursive.yml");
 		this.loader = new OriginTrackedYamlLoader(resource);
 		Map<String, Object> loaded = this.loader.load().get(0);
 		assertThat(loaded.get("test.a.spring")).hasToString("a");
 		assertThat(loaded.get("test.b.boot")).hasToString("b");
 	}
 
-	private OriginTrackedValue getValue(String name) {
+	@Test
+	@WithResource(name = "anchors.yml", content = """
+			some:
+			  path: &anchor
+			    config:
+			      key: value
+			  anotherpath:
+			    <<: *anchor
+			""")
+	void loadWhenUsingAnchors() {
+		Resource resource = new ClassPathResource("anchors.yml");
+		this.loader = new OriginTrackedYamlLoader(resource);
+		Map<String, Object> loaded = this.loader.load().get(0);
+		assertThat(loaded.get("some.path.config.key")).hasToString("value");
+		assertThat(loaded.get("some.anotherpath.config.key")).hasToString("value");
+	}
+
+	@Test
+	void canLoadFilesBiggerThan3Mb() {
+		StringBuilder yaml = new StringBuilder();
+		while (yaml.length() < 4_194_304) {
+			yaml.append("- some list entry\n");
+		}
+		Resource resource = new ByteArrayResource(yaml.toString().getBytes(StandardCharsets.UTF_8));
+		this.loader = new OriginTrackedYamlLoader(resource);
+		Map<String, Object> loaded = this.loader.load().get(0);
+		assertThat(loaded).isNotEmpty();
+	}
+
+	@SuppressWarnings("unchecked")
+	private <T> T getValue(String name) {
 		if (this.result == null) {
 			this.result = this.loader.load();
 		}
-		return (OriginTrackedValue) this.result.get(0).get(name);
+		return (T) this.result.get(0).get(name);
 	}
 
 	private String getLocation(OriginTrackedValue value) {
 		return ((TextResourceOrigin) value.getOrigin()).getLocation().toString();
+	}
+
+	@Retention(RetentionPolicy.RUNTIME)
+	@Target(ElementType.METHOD)
+	@WithResource(name = "test-yaml.yml", content = """
+			# https://docs.ansible.com/ansible/latest/reference_appendices/YAMLSyntax.html
+
+			name: Martin D'vloper
+			job: Developer
+			skill: Elite
+			employed: True
+			foods:
+			    - Apple
+			    - Orange
+			    - Strawberry
+			    - Mango
+			languages:
+			    perl: Elite
+			    python: Elite
+			    pascal: Lame
+			education: |
+			    4 GCSEs
+			    3 A-Levels
+			    BSc in the Internet of Things
+			example:
+			    foo:
+			      - name: springboot
+			        url: https://springboot.example.com/
+			        bar:
+			          - bar1: baz
+			          - bar2: bling
+			empty: ""
+			null-value: null
+			emptylist: []
+			emptymap: {}
+			---
+
+			spring:
+			  profiles: development
+			name: Test Name
+
+			---
+			""")
+	private @interface WithTestYamlResource {
+
 	}
 
 }

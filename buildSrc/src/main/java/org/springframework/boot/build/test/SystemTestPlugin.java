@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.specs.Spec;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.plugins.ide.eclipse.EclipsePlugin;
@@ -59,8 +60,9 @@ public class SystemTestPlugin implements Plugin<Project> {
 		createTestTask(project, systemTestSourceSet);
 		project.getPlugins().withType(EclipsePlugin.class, (eclipsePlugin) -> {
 			EclipseModel eclipse = project.getExtensions().getByType(EclipseModel.class);
-			eclipse.classpath((classpath) -> classpath.getPlusConfigurations().add(
-					project.getConfigurations().getByName(systemTestSourceSet.getRuntimeClasspathConfigurationName())));
+			eclipse.classpath((classpath) -> classpath.getPlusConfigurations()
+				.add(project.getConfigurations()
+					.getByName(systemTestSourceSet.getRuntimeClasspathConfigurationName())));
 		});
 	}
 
@@ -69,22 +71,24 @@ public class SystemTestPlugin implements Plugin<Project> {
 		SourceSet systemTestSourceSet = sourceSets.create(SYSTEM_TEST_SOURCE_SET_NAME);
 		SourceSet mainSourceSet = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 		systemTestSourceSet
-				.setCompileClasspath(systemTestSourceSet.getCompileClasspath().plus(mainSourceSet.getOutput()));
+			.setCompileClasspath(systemTestSourceSet.getCompileClasspath().plus(mainSourceSet.getOutput()));
 		systemTestSourceSet
-				.setRuntimeClasspath(systemTestSourceSet.getRuntimeClasspath().plus(mainSourceSet.getOutput()));
+			.setRuntimeClasspath(systemTestSourceSet.getRuntimeClasspath().plus(mainSourceSet.getOutput()));
 		return systemTestSourceSet;
 	}
 
-	private void createTestTask(Project project, SourceSet systemTestSourceSet) {
-		Test systemTest = project.getTasks().create(SYSTEM_TEST_TASK_NAME, Test.class);
-		systemTest.setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
-		systemTest.setDescription("Runs system tests.");
-		systemTest.setTestClassesDirs(systemTestSourceSet.getOutput().getClassesDirs());
-		systemTest.setClasspath(systemTestSourceSet.getRuntimeClasspath());
-		systemTest.shouldRunAfter(JavaPlugin.TEST_TASK_NAME);
-		if (isCi()) {
-			systemTest.getOutputs().upToDateWhen(NEVER);
-		}
+	private TaskProvider<Test> createTestTask(Project project, SourceSet systemTestSourceSet) {
+		return project.getTasks().register(SYSTEM_TEST_TASK_NAME, Test.class, (task) -> {
+			task.setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
+			task.setDescription("Runs system tests.");
+			task.setTestClassesDirs(systemTestSourceSet.getOutput().getClassesDirs());
+			task.setClasspath(systemTestSourceSet.getRuntimeClasspath());
+			task.shouldRunAfter(JavaPlugin.TEST_TASK_NAME);
+			if (isCi()) {
+				task.getOutputs().upToDateWhen(NEVER);
+				task.getOutputs().doNotCacheIf("System tests are always rerun on CI", (spec) -> true);
+			}
+		});
 	}
 
 	private boolean isCi() {

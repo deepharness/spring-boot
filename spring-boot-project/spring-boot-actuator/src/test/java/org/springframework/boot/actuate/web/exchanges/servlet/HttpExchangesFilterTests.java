@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -88,7 +88,9 @@ class HttpExchangesFilterTests {
 		this.filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
 		assertThat(this.repository.findAll()).hasSize(1);
 		org.springframework.boot.actuate.web.exchanges.HttpExchange.Principal recordedPrincipal = this.repository
-				.findAll().get(0).getPrincipal();
+			.findAll()
+			.get(0)
+			.getPrincipal();
 		assertThat(recordedPrincipal).isNotNull();
 		assertThat(recordedPrincipal.getName()).isEqualTo("alice");
 	}
@@ -104,10 +106,11 @@ class HttpExchangesFilterTests {
 						throw new IOException();
 					}
 
-				}))).satisfies((ex) -> {
-					assertThat(this.repository.findAll()).hasSize(1);
-					assertThat(this.repository.findAll().get(0).getResponse().getStatus()).isEqualTo(500);
-				});
+				})))
+			.satisfies((ex) -> {
+				assertThat(this.repository.findAll()).hasSize(1);
+				assertThat(this.repository.findAll().get(0).getResponse().getStatus()).isEqualTo(500);
+			});
 	}
 
 	@Test
@@ -115,7 +118,7 @@ class HttpExchangesFilterTests {
 		MockHttpServletRequest request = new MockHttpServletRequest();
 		request.setServerName("<script>alert(document.domain)</script>");
 		this.filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
-		assertThat(this.repository.findAll()).hasSize(0);
+		assertThat(this.repository.findAll()).isEmpty();
 	}
 
 }

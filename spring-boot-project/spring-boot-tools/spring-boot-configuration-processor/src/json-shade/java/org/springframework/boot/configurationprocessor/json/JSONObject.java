@@ -311,8 +311,7 @@ public class JSONObject {
 			JSON.checkDouble(((Number) value).doubleValue());
 		}
 
-		if (current instanceof JSONArray) {
-			JSONArray array = (JSONArray) current;
+		if (current instanceof JSONArray array) {
 			array.put(value);
 		}
 		else {
@@ -507,7 +506,7 @@ public class JSONObject {
 	/**
 	 * Returns the value mapped by {@code name} if it exists and is a long or can be
 	 * coerced to a long. Note that JSON represents numbers as doubles, so this is
-	 * <a href="#lossy">lossy</a>; use strings to transfer numbers via JSON.
+	 * <a href="#lossy">lossy</a>; use strings to transfer numbers over JSON.
 	 * @param name the name of the property
 	 * @return the value
 	 * @throws JSONException if the mapping doesn't exist or cannot be coerced to a long.
@@ -537,7 +536,7 @@ public class JSONObject {
 	 * Returns the value mapped by {@code name} if it exists and is a long or can be
 	 * coerced to a long. Returns {@code fallback} otherwise. Note that JSON represents
 	 * numbers as doubles, so this is <a href="#lossy">lossy</a>; use strings to transfer
-	 * numbers via JSON.
+	 * numbers over JSON.
 	 * @param name the name of the property
 	 * @param fallback a fallback value
 	 * @return the value or {@code fallback}
@@ -787,7 +786,7 @@ public class JSONObject {
 	/**
 	 * Wraps the given object if necessary.
 	 * <p>
-	 * If the object is null or , returns {@link #NULL}. If the object is a
+	 * If the object is null or, returns {@link #NULL}. If the object is a
 	 * {@code JSONArray} or {@code JSONObject}, no wrapping is necessary. If the object is
 	 * {@code NULL}, no wrapping is necessary. If the object is an array or
 	 * {@code Collection}, returns an equivalent {@code JSONArray}. If the object is a
@@ -828,7 +827,8 @@ public class JSONObject {
 				return o.toString();
 			}
 		}
-		catch (Exception ignored) {
+		catch (Exception ex) {
+			// Ignore
 		}
 		return null;
 	}

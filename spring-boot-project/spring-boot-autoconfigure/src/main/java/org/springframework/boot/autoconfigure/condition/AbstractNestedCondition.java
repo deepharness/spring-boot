@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ public abstract class AbstractNestedCondition extends SpringBootCondition implem
 	private final ConfigurationPhase configurationPhase;
 
 	AbstractNestedCondition(ConfigurationPhase configurationPhase) {
-		Assert.notNull(configurationPhase, "ConfigurationPhase must not be null");
+		Assert.notNull(configurationPhase, "'configurationPhase' must not be null");
 		this.configurationPhase = configurationPhase;
 	}
 
@@ -167,7 +167,7 @@ public abstract class AbstractNestedCondition extends SpringBootCondition implem
 		List<ConditionOutcome> getMatchOutcomes() {
 			List<ConditionOutcome> outcomes = new ArrayList<>();
 			this.memberConditions.forEach((metadata, conditions) -> outcomes
-					.add(new MemberOutcomes(this.context, metadata, conditions).getUltimateOutcome()));
+				.add(new MemberOutcomes(this.context, metadata, conditions).getUltimateOutcome()));
 			return Collections.unmodifiableList(outcomes);
 		}
 
@@ -199,7 +199,7 @@ public abstract class AbstractNestedCondition extends SpringBootCondition implem
 
 		ConditionOutcome getUltimateOutcome() {
 			ConditionMessage.Builder message = ConditionMessage
-					.forCondition("NestedCondition on " + ClassUtils.getShortName(this.metadata.getClassName()));
+				.forCondition("NestedCondition on " + ClassUtils.getShortName(this.metadata.getClassName()));
 			if (this.outcomes.size() == 1) {
 				ConditionOutcome outcome = this.outcomes.get(0);
 				return new ConditionOutcome(outcome.isMatch(), message.because(outcome.getMessage()));

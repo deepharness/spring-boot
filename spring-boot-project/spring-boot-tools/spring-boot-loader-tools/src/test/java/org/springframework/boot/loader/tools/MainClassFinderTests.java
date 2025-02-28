@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2023 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,8 +85,8 @@ class MainClassFinderTests {
 		this.testJarFile.addClass("a/b/c/E.class", ClassWithMainMethod.class);
 		try (JarFile jarFile = this.testJarFile.getJarFile()) {
 			assertThatIllegalStateException().isThrownBy(() -> MainClassFinder.findSingleMainClass(jarFile, ""))
-					.withMessageContaining(
-							"Unable to find a single main class from the following candidates [a.B, a.b.c.E]");
+				.withMessageContaining(
+						"Unable to find a single main class from the following candidates [a.B, a.b.c.E]");
 		}
 	}
 
@@ -142,9 +142,8 @@ class MainClassFinderTests {
 		this.testJarFile.addClass("a/B.class", ClassWithMainMethod.class);
 		this.testJarFile.addClass("a/b/c/E.class", ClassWithMainMethod.class);
 		assertThatIllegalStateException()
-				.isThrownBy(() -> MainClassFinder.findSingleMainClass(this.testJarFile.getJarSource()))
-				.withMessageContaining(
-						"Unable to find a single main class from the following candidates [a.B, a.b.c.E]");
+			.isThrownBy(() -> MainClassFinder.findSingleMainClass(this.testJarFile.getJarSource()))
+			.withMessageContaining("Unable to find a single main class from the following candidates [a.B, a.b.c.E]");
 	}
 
 	@Test
@@ -164,7 +163,7 @@ class MainClassFinderTests {
 		this.testJarFile.addClass("a/b/G.class", ClassWithMainMethod.class);
 		ClassNameCollector callback = new ClassNameCollector();
 		MainClassFinder.doWithMainClasses(this.testJarFile.getJarSource(), callback);
-		assertThat(callback.getClassNames().toString()).isEqualTo("[a.b.G, a.b.c.D]");
+		assertThat(callback.getClassNames()).hasToString("[a.b.G, a.b.c.D]");
 	}
 
 	@Test
@@ -176,7 +175,7 @@ class MainClassFinderTests {
 		ClassNameCollector callback = new ClassNameCollector();
 		try (JarFile jarFile = this.testJarFile.getJarFile()) {
 			MainClassFinder.doWithMainClasses(jarFile, null, callback);
-			assertThat(callback.getClassNames().toString()).isEqualTo("[a.b.G, a.b.c.D]");
+			assertThat(callback.getClassNames()).hasToString("[a.b.G, a.b.c.D]");
 		}
 	}
 

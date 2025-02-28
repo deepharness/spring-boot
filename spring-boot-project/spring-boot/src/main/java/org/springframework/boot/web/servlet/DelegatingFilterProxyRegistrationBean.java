@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2021 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ import org.springframework.web.filter.DelegatingFilterProxy;
  * marked {@code @Lazy} it won't be instantiated at all until the filter is called.
  * <p>
  * Registrations can be associated with {@link #setUrlPatterns URL patterns} and/or
- * servlets (either by {@link #setServletNames name} or via a
+ * servlets (either by {@link #setServletNames name} or through a
  * {@link #setServletRegistrationBeans ServletRegistrationBean}s). When no URL pattern or
  * servlets are specified the filter will be associated to '/*'. The targetBeanName will
  * be used as the filter name if not otherwise specified.
@@ -68,7 +68,7 @@ public class DelegatingFilterProxyRegistrationBean extends AbstractFilterRegistr
 	public DelegatingFilterProxyRegistrationBean(String targetBeanName,
 			ServletRegistrationBean<?>... servletRegistrationBeans) {
 		super(servletRegistrationBeans);
-		Assert.hasLength(targetBeanName, "TargetBeanName must not be null or empty");
+		Assert.hasLength(targetBeanName, "'targetBeanName' must not be empty");
 		this.targetBeanName = targetBeanName;
 		setName(targetBeanName);
 	}
@@ -95,8 +95,9 @@ public class DelegatingFilterProxyRegistrationBean extends AbstractFilterRegistr
 	}
 
 	private WebApplicationContext getWebApplicationContext() {
-		Assert.notNull(this.applicationContext, "ApplicationContext be injected");
-		Assert.isInstanceOf(WebApplicationContext.class, this.applicationContext);
+		Assert.state(this.applicationContext != null, "ApplicationContext has not been injected");
+		Assert.state(this.applicationContext instanceof WebApplicationContext,
+				"Injected ApplicationContext is not a WebApplicationContext");
 		return (WebApplicationContext) this.applicationContext;
 	}
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 the original author or authors.
+ * Copyright 2012-2025 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.aot.AbstractAotProcessor.Settings;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
 import static org.assertj.core.api.Assertions.assertThatIllegalStateException;
 
 /**
@@ -58,7 +57,7 @@ class SpringApplicationAotProcessorTests {
 		SpringApplicationAotProcessor processor = new SpringApplicationAotProcessor(BrokenApplication.class,
 				settings(directory), new String[0]);
 		assertThatIllegalStateException().isThrownBy(processor::process)
-				.withMessageContaining("Does it run a SpringApplication?");
+			.withMessageContaining("Does it run a SpringApplication?");
 		assertThat(directory).isEmptyDirectory();
 	}
 
@@ -84,15 +83,18 @@ class SpringApplicationAotProcessorTests {
 
 	@Test
 	void invokeMainWithMissingArguments() {
-		assertThatIllegalArgumentException()
-				.isThrownBy(() -> SpringApplicationAotProcessor.main(new String[] { "Test" }))
-				.withMessageContaining("Usage:");
+		assertThatIllegalStateException().isThrownBy(() -> SpringApplicationAotProcessor.main(new String[] { "Test" }))
+			.withMessageContaining("Usage:");
 	}
 
 	private Settings settings(Path directory) {
-		return Settings.builder().sourceOutput(directory.resolve("source"))
-				.resourceOutput(directory.resolve("resource")).classOutput(directory.resolve("class"))
-				.groupId("com.example").artifactId("example").build();
+		return Settings.builder()
+			.sourceOutput(directory.resolve("source"))
+			.resourceOutput(directory.resolve("resource"))
+			.classOutput(directory.resolve("class"))
+			.groupId("com.example")
+			.artifactId("example")
+			.build();
 
 	}
 
