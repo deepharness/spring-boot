@@ -2170,7 +2170,7 @@ bom {
 			]
 		}
 	}
-	library("Spring AMQP", "3.2.5-SNAPSHOT") {
+	library("Spring AMQP", "3.2.5") {
 		considerSnapshots()
 		group("org.springframework.amqp") {
 			bom("spring-amqp-bom")
@@ -2185,7 +2185,7 @@ bom {
 			releaseNotes("https://github.com/spring-projects/spring-amqp/releases/tag/v{version}")
 		}
 	}
-	library("Spring Authorization Server", "1.5.0-SNAPSHOT") {
+	library("Spring Authorization Server", "1.5.0-RC1") {
 		considerSnapshots()
 		group("org.springframework.security") {
 			modules = [
@@ -2294,7 +2294,7 @@ bom {
 			releaseNotes("https://github.com/spring-projects/spring-hateoas/releases/tag/{version}")
 		}
 	}
-	library("Spring Integration", "6.5.0-SNAPSHOT") {
+	library("Spring Integration", "6.5.0-RC1") {
 		considerSnapshots()
 		group("org.springframework.integration") {
 			bom("spring-integration-bom")
@@ -2309,7 +2309,7 @@ bom {
 			releaseNotes("https://github.com/spring-projects/spring-integration/releases/tag/v{version}")
 		}
 	}
-	library("Spring Kafka", "3.3.5-SNAPSHOT") {
+	library("Spring Kafka", "3.3.5") {
 		considerSnapshots()
 		group("org.springframework.kafka") {
 			modules = [
@@ -2347,7 +2347,7 @@ bom {
 			releaseNotes("https://github.com/spring-projects/spring-ldap/releases/tag/{version}")
 		}
 	}
-	library("Spring Pulsar", "1.2.5-SNAPSHOT") {
+	library("Spring Pulsar", "1.2.5") {
 		considerSnapshots()
 		group("org.springframework.pulsar") {
 			bom("spring-pulsar-bom")
@@ -2405,7 +2405,7 @@ bom {
 			releaseNotes("https://github.com/spring-projects/spring-security/releases/tag/{version}")
 		}
 	}
-	library("Spring Session", "3.5.0-SNAPSHOT") {
+	library("Spring Session", "3.5.0-RC1") {
 		considerSnapshots()
 		prohibit {
 			startsWith(["Apple-", "Bean-", "Corn-", "Dragonfruit-"])
